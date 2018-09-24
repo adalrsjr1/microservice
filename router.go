@@ -200,7 +200,7 @@ func TerminationRequest(client *zipkinhttp.Client, name string, targets []string
 			log.Printf("termination")
 
 			span := zipkin.SpanFromContext(r.Context())
-			span.Tag("terimation_node", "true")
+			span.Tag("termination_node", "true")
 			span.Tag("request_size", strconv.FormatInt(r.ContentLength, 10))
 
 			timeElapsed := FinityCpuUsage(calculationTime, load)
