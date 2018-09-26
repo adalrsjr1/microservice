@@ -73,7 +73,6 @@ class DockerCompose:
 
         for key, value in adjacency.iteritems():
             childs = [name_prefix+str(child) for child, v in value.iteritems()]
-
             svcs[name_prefix+str(key)] = self.__createservice(
                         name_prefix+str(key),
                         zipkin,
@@ -106,8 +105,6 @@ class DockerCompose:
             svc['ports'] = ['8080:8080']
 
         return svc
-
-
 
     def dump(self, out=sys.stdout):
         dump(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')

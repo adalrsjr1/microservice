@@ -6,7 +6,7 @@ import (
 	reporterhttp "github.com/openzipkin/zipkin-go/reporter/http"
 )
 
-func newTracer(serviceName string, zipkinEndpoint string) (*zipkin.Tracer, error) {
+func newTracer(serviceName string, zipkinEndpoint string, enable bool) (*zipkin.Tracer, error) {
 	endpointURL := "http://" + zipkinEndpoint + "/api/v2/spans"
 
 	// The reporter sends traces to zipkin server
@@ -17,7 +17,12 @@ func newTracer(serviceName string, zipkinEndpoint string) (*zipkin.Tracer, error
 
 	// Sampler tells you which traces are going to be sampled or not. In
 	// this case we will record 100% (1.00) of traces
-	sampler, err := zipkin.NewCountingSampler(1)
+  samplingRate := 0.00
+  if enable {
+    samplingRate = 1.00
+  }
+
+  sampler, err := zipkin.NewCountingSampler(samplingRate)
 	if err != nil {
 		return nil, err
 	}

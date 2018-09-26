@@ -2,12 +2,11 @@
 
 A tiny golang application simulating a microservice. It
 
-- listens for inbound connections
+- listens for HTTP POST inbound connections
 - connects to other named microservices specified on the command line
 - sends messages with size specified on the command line
 - maintains a user defined CPU and memory load
 - logs sent and received through Zipkin
-- is a REST microservice
 
 ## Build
 
@@ -37,7 +36,7 @@ Usage of ./micro-sock:
 
 ## Example
 
-The following example will start microservice and attempt to connect to a different instance of micro-sock, on host "test-host". In this case, zipkin is on host "zipkin"
+The following example will start a microservice and attempt to connect to a different instance of micro-sock "test-host". In this case, zipkin is on host "zipkin"
 
 ```bash
 ./microservice -name=micro -zipkin=zipkin:9411 test-host

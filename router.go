@@ -26,6 +26,7 @@ func main() {
 		msgTime    uint
 		memUsage   uint
 		zipkinAddr string
+    isSampling bool
 	)
 
 	flag.StringVar(&zipkinAddr, "zipkin", "0.0.0.0:9411", "zipkin addr:port default 0.0.0.0:9411")
@@ -34,6 +35,7 @@ func main() {
 	flag.Float64Var(&load, "load", 0.1, "CPU load per message default:10% (0.1)")
 	flag.UintVar(&msgTime, "msg-time", 10, "Time do compute an msg-request default 10ms")
 	flag.UintVar(&memUsage, "mem", 128, "min memory usage default:128MB")
+  flag.BoolVar(&isSampling, "sampling", true, "sampling messages to store into zipkin")
 	flag.Parse()
 	addrs := flag.Args()
 
@@ -41,7 +43,7 @@ func main() {
 		log.Fatal("argument --name must be set")
 	}
 
-	tracer, err := newTracer(name, zipkinAddr)
+	tracer, err := newTracer(name, zipkinAddr, isSampling)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -102,6 +104,10 @@ func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.C
 	span.Annotate(time.Now(), "foo_expensive_calc_done")
 
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
+
+  if len(targets) == 0 {
+    targets = append(targets, "localhost")
+  }
 
 	for _, target := range targets {
 
@@ -184,7 +190,7 @@ func randomSelection(targets []string) string {
 	size := len(targets)
 
 	if size <= 0 {
-		return "none"
+		return "localhost"
 	}
 
 	selected := targets[rand.Intn(size)]
