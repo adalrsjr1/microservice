@@ -1,4 +1,4 @@
-from yaml import dump, load
+from yaml import dump, dump_all, load
 import sys
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -109,15 +109,149 @@ class DockerCompose:
     def dump(self, out=sys.stdout):
         dump(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
+class Kubernetes:
+    def __init__(self, graph):
+        self.g = graph
+        self.scheme = []
+
+    def dump(self, out=sys.stdout):
+        dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
+
+    def create(self, uappName, svc_prefix, msgsize, load, msgtime, mem, sampling, nodename=''):
+        yamlFiles = [self.namespace(uappName)]
+
+        adjacency = g.adjacency()
+        name_prefix = svc_prefix
+        args = {}
+
+        for key, value in adjacency.iteritems():
+            childs = [name_prefix+str(child) for child, v in value.iteritems()]
+            name = name_prefix+str(key)
+            args['name'] = name
+            args['msgsize'] = msgsize
+            args['load'] = load
+            args['msgtime'] = msgtime
+            args['mem'] = mem
+            args['sampling'] = sampling
+            args['childs'] = childs
+
+            root=not bool(key)
+
+            yamlFiles.append(self.service(name, uappName, root=root))
+            yamlFiles.append(self.deployment(name, uappName, args, sampling=sampling, nodename=nodename))
+
+        self.scheme = yamlFiles
+        return yamlFiles
+
+    def namespace(self, name):
+        return {
+            'apiVersion': 'v1',
+            'kind': 'Namespace',
+            'metadata': {
+                'name': name
+            }
+        }
+
+    def service(self, name, namespace, root=False, externalPort='30001'):
+        return {
+            'kind': 'Service',
+            'apiVersion': 'v1',
+            'metadata': {
+                'name': name,
+                'namespace': namespace
+            },
+            'spec': self.__spec(root, namespace, externalPort),
+        }
+
+    def __spec(self, root, namespace, externalport) :
+        spec = {
+            'selector': {
+                'app': namespace
+            }
+        }
+
+        port = {
+            'port': 8080,
+            'targetPort': 8080,
+            'protocol': 'TCP',
+            'name': 'http'
+        }
+
+        if root:
+            spec['type'] = 'NodePort'
+            port['nodePort'] = int(externalport)
+
+        spec['ports'] = [port]
+
+        return spec
+
+    def deployment(self, name, namespace, args, sampling=True, nodename=''):
+        nodeSelector = {
+            'beta.kubernetes.io/os': 'linux'
+        }
+        if bool(nodename):
+            nodeSelector['kubernetes.io/hostname'] = nodename
+
+        return {
+            'apiVersion': 'apps/v1',
+            'kind': 'Deployment',
+            'metadata': {
+                'name': name,
+                'namespace': namespace
+            },
+            'spec': {
+                'replicas': 1,
+                'selector': {
+                    'matchLabels': {
+                        'app': namespace
+                    }
+                },
+                'template': {
+                    'metadata': {
+                        'labels': {
+                            'app': namespace
+                        }
+                    },
+                    'spec': {
+                        'containers': [{
+                            'name': name,
+                            'image': 'adalrsjr1/microservice:latest',
+                            'imagePullPolicy': 'Always',
+                            'ports': [{'containerPort': 8080}],
+                            'args': [
+                                '--name=%s' % name,
+                                '--zipkin=$(ZIPKIN):9411',
+                                '--sampling=%s' % args['sampling'],
+                                '--msg-size=%s' % args['msgsize'],
+                                '--load=%s' % args['load'],
+                                '--msg-time=%s' % args['msgtime'],
+                                '--mem=%s' % args['mem']
+                            ] + args['childs'],
+                            'env': [
+                                {'name': 'ZIPKIN',
+                                'value': 'zipkin.zipkin.svc.cluster.local'}
+                            ]
+                        }],
+                        'nodeSelector': nodeSelector
+                    }
+                }
+            }
+        }
+
+
 
 if __name__=="__main__":
-    g = Graph(1000, 42)
+    g = Graph(10, 31)
     dc = DockerCompose(g)
     dc.create('svc_', 'zipkin:9411', '100', '0.35', '100', '0')
     compose = open('test.yaml','w')
     dc.dump(out=compose)
     g.save()
 
+    k = Kubernetes(g)
+    k.create('uapp', 'svc-', '100', '0.35','100','0',True)
+    kubernetes = open('k8s.yaml', 'w')
+    k.dump(out=kubernetes)
 
     #yaml = YAML()
     #yaml.dump(svc, sys.stdout)
