@@ -72,12 +72,25 @@ func main() {
 
 	r := mux.NewRouter()
 
-	r.Methods("POST").Path("/all").HandlerFunc(AllTargets(client, addrs[:], msgSize, msgTime, load))
-	r.Methods("POST").Path("/random").HandlerFunc(RandomTarget(client, addrs[:], msgSize, msgTime, load))
-	r.Methods("POST").Path("/").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, load))
+  if len(addrs) != 0 {
+
+    log.Printf("setting non-terminal handlers in %s", name)
+
+	  r.Methods("POST").Path("/").HandlerFunc(AllTargets(client, addrs[:], msgSize, msgTime, load))
+	  r.Methods("POST").Path("/random").HandlerFunc(RandomTarget(client, addrs[:], msgSize, msgTime, load))
+
+  } else {
+
+    log.Printf("setting terminal handlers in %s", name)
+
+    r.Methods("POST").Path("/").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, load))
+	  r.Methods("POST").Path("/random").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, load))
+
+  }
 
 	r.Use(zipkinhttp.NewServerMiddleware(
 		tracer,
+    zipkinhttp.TagResponseSize(true),
 		zipkinhttp.SpanName("request")), // name for request span
 	)
 	log.Fatal(http.ListenAndServe(":8080", r))
@@ -90,32 +103,37 @@ func writePid() {
 }
 
 func AllTargets(client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64) http.HandlerFunc {
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		CallAllTargets(w, r, client, targets[:], requestSize, calculationTime)
+    log.Printf("ok")
+		CallAllTargets(w, r, client, targets[:], requestSize, calculationTime, load)
 	}
 }
 
-func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint) {
+func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64) {
 	span := zipkin.SpanFromContext(r.Context())
-	span.Tag("terimation_node", "false")
 
-	time.Sleep(time.Duration(integerNormalDistribution(calculationTime, 10)) * time.Millisecond)
-	span.Annotate(time.Now(), "foo_expensive_calc_done")
+  if span == nil {
+    log.Printf("span is nil")
+  }
+
+	span.Tag("termination_node", "false")
+
+	FinityCpuUsage(calculationTime, load)
+	span.Annotate(time.Now(), "expensive_calc_done")
 
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
 
-  if len(targets) == 0 {
-    targets = append(targets, "localhost")
-  }
 
+  var bodyBytes []byte
 	for _, target := range targets {
 
-		newRequest, err := http.NewRequest("POST", "http://"+target+":8080?query=all", bytes.NewBuffer(byteMessage))
+    log.Printf("-->" + target)
+		newRequest, err := http.NewRequest("POST", "http://"+target+":8080/", bytes.NewBuffer(byteMessage))
+
 		if err != nil {
 			log.Printf("unable to create client: %+v\n", err)
-			// http.Error(w, err.Error(), 500)
-			// return
+			http.Error(w, err.Error(), 500)
+			continue
 		}
 
 		byteMessage = nil
@@ -123,15 +141,18 @@ func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.C
 		ctx := zipkin.NewContext(newRequest.Context(), span)
 		newRequest = newRequest.WithContext(ctx)
 
-		res, err := client.DoWithAppSpan(newRequest, target+"_target")
+		res, err := client.DoWithAppSpan(newRequest, target)
 		if err != nil {
 			log.Printf("call to %s returned error: %+v\n", target, err)
-			// http.Error(w, err.Error(), 500)
-			// return
+			http.Error(w, err.Error(), 500)
+			return
 		}
+    auxBodyBytes, _ := ioutil.ReadAll(res.Body)
+    bodyBytes = append(bodyBytes, auxBodyBytes...)
 		res.Body.Close()
 
 	}
+  w.Write(bodyBytes)
 
 }
 
@@ -146,25 +167,31 @@ func integerNormalDistribution(mean uint, dev uint) uint {
 func RandomTarget(client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		CallRandomTarget(w, r, client, targets[:], requestSize, calculationTime)
+		CallRandomTarget(w, r, client, targets[:], requestSize, calculationTime, load)
 	}
 }
 
 func CallRandomTarget(w http.ResponseWriter, r *http.Request,
 	client *zipkinhttp.Client, targets []string, requestSize uint,
-	calculationTime uint) {
+	calculationTime uint, load float64) {
 
 	span := zipkin.SpanFromContext(r.Context())
-	span.Tag("terimation_node", "false")
 
-	time.Sleep(time.Duration(integerNormalDistribution(calculationTime, 10)) * time.Millisecond)
-	span.Annotate(time.Now(), "foo_expensive_calc_done")
+  if span == nil {
+    log.Printf("span is nil")
+  }
+
+	span.Tag("termination_node", "false")
+
+	FinityCpuUsage(calculationTime, load)
+	span.Annotate(time.Now(), "expensive_calc_done")
 
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
 
 	target := randomSelection(targets[:])
 
-	newRequest, err := http.NewRequest("POST", "http://"+target+":8080?query=random", bytes.NewBuffer(byteMessage))
+  log.Printf("-->" + target)
+	newRequest, err := http.NewRequest("POST", "http://"+target+":8080/random", bytes.NewBuffer(byteMessage))
 	if err != nil {
 		log.Printf("unable to create client: %+v\n", err)
 		http.Error(w, err.Error(), 500)
@@ -176,14 +203,15 @@ func CallRandomTarget(w http.ResponseWriter, r *http.Request,
 	ctx := zipkin.NewContext(newRequest.Context(), span)
 	newRequest = newRequest.WithContext(ctx)
 
-	res, err := client.DoWithAppSpan(newRequest, target+"_target")
+	res, err := client.DoWithAppSpan(newRequest, "random " + target)
 	if err != nil {
 		log.Printf("call to %s returned error: %+v\n", target, err)
-		// http.Error(w, err.Error(), 500)
-		// return
+		http.Error(w, err.Error(), 500)
+		return
 	}
+  bodyBytes, _ := ioutil.ReadAll(res.Body)
 	res.Body.Close()
-
+  w.Write(bodyBytes)
 }
 
 func randomSelection(targets []string) string {
@@ -199,30 +227,27 @@ func randomSelection(targets []string) string {
 
 func TerminationRequest(client *zipkinhttp.Client, name string, targets []string, requestSize uint, calculationTime uint, load float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		log.Printf("into %s", name)
 		log.Printf("%+v", targets)
-		query := r.URL.Query().Get("query")
+		//query := r.URL.Query().Get("query")
+
 		if len(targets) <= 0 {
+
 			log.Printf("termination")
+
+	    byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
+      w.Header().Set("Content-Type","octect-stream")
+      w.Write(byteMessage)
 
 			span := zipkin.SpanFromContext(r.Context())
 			span.Tag("termination_node", "true")
-			span.Tag("request_size", strconv.FormatInt(r.ContentLength, 10))
-
 			timeElapsed := FinityCpuUsage(calculationTime, load)
 			span.Tag("elapsed_time_ms", strconv.FormatInt(int64(timeElapsed/time.Millisecond), 10))
 			// the timeElapsed above must be Time
 			// span.Annotate(timeElapsed, "time elapsed")
-
-		} else {
-			log.Printf("next call : %s", query)
-
-			if query == "random" {
-				CallRandomTarget(w, r, client, targets[:], requestSize, calculationTime)
-			} else {
-				CallAllTargets(w, r, client, targets[:], requestSize, calculationTime)
-			}
+      span.Finish()
 
 		}
-	}
+  }
 }

@@ -125,7 +125,7 @@ class Kubernetes:
         args = {}
 
         for key, value in adjacency.iteritems():
-            childs = [name_prefix+str(child) for child, v in value.iteritems()]
+            childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.iteritems()]
             name = name_prefix+str(key)
             args['name'] = name
             args['msgsize'] = msgsize
@@ -160,13 +160,13 @@ class Kubernetes:
                 'name': name,
                 'namespace': namespace
             },
-            'spec': self.__spec(root, namespace, externalPort),
+            'spec': self.__spec(root, name, externalPort),
         }
 
-    def __spec(self, root, namespace, externalport) :
+    def __spec(self, root, name, externalport) :
         spec = {
             'selector': {
-                'app': namespace
+                'app': name
             }
         }
 
@@ -197,19 +197,20 @@ class Kubernetes:
             'kind': 'Deployment',
             'metadata': {
                 'name': name,
-                'namespace': namespace
+                'namespace': namespace,
+                'labels': {'app': name}
             },
             'spec': {
                 'replicas': 1,
                 'selector': {
                     'matchLabels': {
-                        'app': namespace
+                        'app': name
                     }
                 },
                 'template': {
                     'metadata': {
                         'labels': {
-                            'app': namespace
+                            'app': name
                         }
                     },
                     'spec': {
@@ -241,7 +242,7 @@ class Kubernetes:
 
 
 if __name__=="__main__":
-    g = Graph(10, 31)
+    g = Graph(15, 31)
     dc = DockerCompose(g)
     dc.create('svc_', 'zipkin:9411', '100', '0.35', '100', '0')
     compose = open('test.yaml','w')

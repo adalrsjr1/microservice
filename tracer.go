@@ -22,6 +22,7 @@ func newTracer(serviceName string, zipkinEndpoint string, enable bool) (*zipkin.
     samplingRate = 1.00
   }
 
+
   sampler, err := zipkin.NewCountingSampler(samplingRate)
 	if err != nil {
 		return nil, err

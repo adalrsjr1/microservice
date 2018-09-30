@@ -2,7 +2,7 @@
 
 IMAGE=adalrsjr1/microservice
 
-all: image
+all: clean image publish
 
 microservice: router.go tracer.go metrics.go
 	env GOOS=linux GOARCH=amd64 go build -tags netgo
