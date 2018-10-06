@@ -17,6 +17,8 @@ import (
 	zipkinhttp "github.com/openzipkin/zipkin-go/middleware/http"
 )
 
+var globalName = ""
+
 func main() {
 	writePid()
 	var (
@@ -42,6 +44,7 @@ func main() {
 	if len(name) <= 0 {
 		log.Fatal("argument --name must be set")
 	}
+  globalName = name
 
 	tracer, err := newTracer(name, zipkinAddr, isSampling)
 	if err != nil {
@@ -129,6 +132,9 @@ func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.C
 
     log.Printf("-->" + target)
 		newRequest, err := http.NewRequest("POST", "http://"+target+":8080/", bytes.NewBuffer(byteMessage))
+    span.Tag("source", globalName)
+    span.Tag("target", target)
+
 
 		if err != nil {
 			log.Printf("unable to create client: %+v\n", err)
@@ -192,6 +198,8 @@ func CallRandomTarget(w http.ResponseWriter, r *http.Request,
 
   log.Printf("-->" + target)
 	newRequest, err := http.NewRequest("POST", "http://"+target+":8080/random", bytes.NewBuffer(byteMessage))
+  span.Tag("source", globalName)
+  span.Tag("target", target)
 	if err != nil {
 		log.Printf("unable to create client: %+v\n", err)
 		http.Error(w, err.Error(), 500)
