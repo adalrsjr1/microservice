@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+  "encoding/binary"
 
 	"github.com/gorilla/mux"
 	zipkin "github.com/openzipkin/zipkin-go"
@@ -18,6 +19,7 @@ import (
 )
 
 var globalName = ""
+var tracer *zipkin.Tracer
 
 func main() {
 	writePid()
@@ -46,7 +48,8 @@ func main() {
 	}
   globalName = name
 
-	tracer, err := newTracer(name, zipkinAddr, isSampling)
+  var err error
+	tracer, err = newTracer(name, zipkinAddr, isSampling)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -113,38 +116,27 @@ func AllTargets(client *zipkinhttp.Client, targets []string, requestSize uint, c
 }
 
 func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64) {
-	span := zipkin.SpanFromContext(r.Context())
-
-  if span == nil {
-    log.Printf("span is nil")
-  }
-
-	span.Tag("termination_node", "false")
-
 	FinityCpuUsage(calculationTime, load)
-	span.Annotate(time.Now(), "expensive_calc_done")
-
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
-
 
   var bodyBytes []byte
 	for _, target := range targets {
-
+	  span, ctx := tracer.StartSpanFromContext(r.Context(), "size")//zipkin.SpanFromContext(r.Context())
+	  span.Tag("termination_node", "false")
     log.Printf("-->" + target)
 		newRequest, err := http.NewRequest("POST", "http://"+target+":8080/", bytes.NewBuffer(byteMessage))
     span.Tag("source", globalName)
     span.Tag("target", target)
-
+    span.Tag("req-size", strconv.Itoa(binary.Size(bodyBytes)))
 
 		if err != nil {
 			log.Printf("unable to create client: %+v\n", err)
 			http.Error(w, err.Error(), 500)
 			continue
 		}
-
-		byteMessage = nil
-
-		ctx := zipkin.NewContext(newRequest.Context(), span)
+    defer span.Finish()
+    span.Tag("req-size", strconv.Itoa(binary.Size(bodyBytes)))
+		//ctx := zipkin.NewContext(newRequest.Context(), span)
 		newRequest = newRequest.WithContext(ctx)
 
 		res, err := client.DoWithAppSpan(newRequest, target)
@@ -155,6 +147,8 @@ func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.C
 		}
     auxBodyBytes, _ := ioutil.ReadAll(res.Body)
     bodyBytes = append(bodyBytes, auxBodyBytes...)
+    span.Tag("res-size", strconv.Itoa(binary.Size(auxBodyBytes)))
+
 		res.Body.Close()
 
 	}
@@ -181,7 +175,8 @@ func CallRandomTarget(w http.ResponseWriter, r *http.Request,
 	client *zipkinhttp.Client, targets []string, requestSize uint,
 	calculationTime uint, load float64) {
 
-	span := zipkin.SpanFromContext(r.Context())
+	span, ctx := tracer.StartSpanFromContext(r.Context(), "size")//zipkin.SpanFromContext(r.Context())
+	//span := zipkin.SpanFromContext(r.Context())
 
   if span == nil {
     log.Printf("span is nil")
@@ -200,15 +195,18 @@ func CallRandomTarget(w http.ResponseWriter, r *http.Request,
 	newRequest, err := http.NewRequest("POST", "http://"+target+":8080/random", bytes.NewBuffer(byteMessage))
   span.Tag("source", globalName)
   span.Tag("target", target)
+  span.Tag("req-size", strconv.Itoa(binary.Size(byteMessage)))
+
 	if err != nil {
 		log.Printf("unable to create client: %+v\n", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
+  defer span.Finish()
 
 	byteMessage = nil
 
-	ctx := zipkin.NewContext(newRequest.Context(), span)
+	ctx = zipkin.NewContext(newRequest.Context(), span)
 	newRequest = newRequest.WithContext(ctx)
 
 	res, err := client.DoWithAppSpan(newRequest, "random " + target)
@@ -218,6 +216,7 @@ func CallRandomTarget(w http.ResponseWriter, r *http.Request,
 		return
 	}
   bodyBytes, _ := ioutil.ReadAll(res.Body)
+  span.Tag("res-size", strconv.Itoa(binary.Size(bodyBytes)))
 	res.Body.Close()
   w.Write(bodyBytes)
 }
@@ -248,8 +247,12 @@ func TerminationRequest(client *zipkinhttp.Client, name string, targets []string
       w.Header().Set("Content-Type","octect-stream")
       w.Write(byteMessage)
 
-			span := zipkin.SpanFromContext(r.Context())
+	    span, _ := tracer.StartSpanFromContext(r.Context(), "size")//zipkin.SpanFromContext(r.Context())
+			//span := zipkin.SpanFromContext(r.Context())
 			span.Tag("termination_node", "true")
+      //span.Tag("source", globalName)
+      //span.Tag("target", "terminal")
+      //span.Tag("req-size", strconv.Itoa(binary.Size(byteMessage)))
 			timeElapsed := FinityCpuUsage(calculationTime, load)
 			span.Tag("elapsed_time_ms", strconv.FormatInt(int64(timeElapsed/time.Millisecond), 10))
 			// the timeElapsed above must be Time
