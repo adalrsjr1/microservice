@@ -4,8 +4,8 @@ IMAGE=adalrsjr1/microservice
 
 all: clean image publish
 
-microservice: router.go tracer.go metrics.go
-	env GOOS=linux GOARCH=amd64 go build -tags netgo
+microservice: core.go
+	env GOOS=linux GOARCH=amd64 CGO_ENABLED="1" go build -tags netgo .
 
 image: Dockerfile microservice
 	docker build -t $(IMAGE) .

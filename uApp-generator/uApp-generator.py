@@ -148,7 +148,10 @@ class Kubernetes:
             'apiVersion': 'v1',
             'kind': 'Namespace',
             'metadata': {
-                'name': name
+                'name': name,
+                'labels': {
+                    'istio-injection': 'enabled'
+                }
             }
         }
 
@@ -242,7 +245,7 @@ class Kubernetes:
 
 
 if __name__=="__main__":
-    g = Graph(10, 31)
+    g = Graph(3, 31)
     dc = DockerCompose(g)
     dc.create('svc_', 'zipkin:9411', '100', '0.35', '100', '0')
     compose = open('test.yaml','w')
