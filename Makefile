@@ -7,6 +7,9 @@ all: clean image publish
 microservice: core.go
 	env GOOS=linux GOARCH=amd64 CGO_ENABLED="1" go build -tags netgo .
 
+windows: core.go
+	env GOOS=linux GOARCH=amd64 CGo_ENABLED="1" go build -tags netgo .
+
 image: Dockerfile microservice
 	docker build -t $(IMAGE) .
 

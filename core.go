@@ -1,143 +1,106 @@
 package main
 
-/*
-#cgo LDFLAGS:
-#include<stdlib.h>
-#include<string.h>
-char* memory_allocation(unsigned long bytes) {
-    char *memory = malloc(bytes);
-	memset(memory, 1, bytes);
-    return memory;
-}
-
-void memory_deallocation(char* memory_chunck) {
-    return free(memory_chunck);
-}
-*/
-import "C"
 import (
-	"fmt"
-	"io/ioutil"
+	"bytes"
 	"log"
 	"net/http"
-	"os"
 	"runtime"
 	"strconv"
-	"time"
 
+	"github.com/gorilla/http"
 	"github.com/gorilla/mux"
-	"github.com/shirou/gopsutil/process"
-
-	"github.com/google/uuid"
 )
 
 func main() {
 
-	storePid()
+	Pid()
+
+	// var (
+	// 	name       string
+	// 	msgSize    uint
+	// 	load       float64
+	// 	msgTime    uint
+	// 	memUsage   uint
+	// 	zipkinAddr string
+	// 	isSampling bool
+	// )
+
+	// flag.StringVar(&zipkinAddr, "zipkin", "0.0.0.0:9411", "zipkin addr:port default 0.0.0.0:9411")
+	// flag.StringVar(&name, "name", "", "service name")
+	// flag.UintVar(&msgSize, "msg-size", 256, "average size in bytes default:256")
+	// flag.Float64Var(&load, "load", 0.1, "CPU load per message default:10% (0.1)")
+	// flag.UintVar(&msgTime, "msg-time", 10, "Time do compute an msg-request default 10ms")
+	// flag.UintVar(&memUsage, "mem", 128, "min memory usage default:128MB")
+	// flag.BoolVar(&isSampling, "sampling", true, "sampling messages to store into zipkin")
+	// flag.Parse()
+	// addrs := flag.Args()
+
+	// 	if len(name) <= 0 {
+	// 		log.Fatal("argument --name must be set")
+	// 	}
 
 	r := mux.NewRouter()
 	r.HandleFunc("/cpu", CpuHandler)
 	r.HandleFunc("/memory", MemoryHandler)
-	r.HandleFunc("/call/{next}", CallNextHandler)
-	r.HandleFunc("/serve", RequestHandler)
-	r.HandleFunc("/", RequestHandler)
+	r.HandleFunc("/call/{next}", IntermediaryRequestHandler)
+	r.HandleFunc("/", LeafRequestHandler)
 	http.Handle("/", r)
 
 	log.Fatal(http.ListenAndServe(":8888", r))
 }
 
-func storePid() {
-	pid := os.Getpid()
-	bpid := []byte(strconv.Itoa(pid))
-	procUUID := uuid.New().String()
-
-	pidFilename := fmt.Sprint("/tmp/", procUUID, ".pid")
-	ioutil.WriteFile(pidFilename, bpid, 0644)
-}
-
 func CpuHandler(w http.ResponseWriter, r *http.Request) {
-	proc := getProcInstance()
-
-	cpuPerc, _ := proc.CPUPercent()
-
+	cpuPerc := GetCpuUsage()
 	w.Write([]byte(strconv.FormatFloat(cpuPerc, 'f', 10, 64)))
 }
 
-func getProcInstance() *process.Process {
-	pid := os.Getpid()
-	proc, _ := process.NewProcess(int32(pid))
-
-	return proc
-}
-
 func MemoryHandler(w http.ResponseWriter, r *http.Request) {
-	proc := getProcInstance()
-
-	memInfo, _ := proc.MemoryInfo()
-
-	w.Write([]byte(strconv.FormatUint(memInfo.VMS, 10)))
+	memUsage := GetMemUsage()
+	w.Write([]byte(strconv.FormatUint(memUsage, 10)))
 }
 
-func CallNextHandler(w http.ResponseWriter, r *http.Request) {
-
+func IntermediaryRequestHandler(w http.ResponseWriter, r *http.Request) {
+	payload := 128
+	destination := ""
+	cpuLoad := .3
+	memoryRequest := 128
+	innerBehavior(cpuLoad, memoryRequest, payload, destination, callNext)
 }
 
-func RequestHandler(w http.ResponseWriter, r *http.Request) {
+type fn func(uint, string)
+
+func callNext(payloadSize uint, destination string) {
+	if err := gorilla / http.Post(destination, bytes.NewReader(make([]byte, payloadSize))); err != nil {
+		log.Fatalf("could not post: %v", err)
+	}
+}
+
+func innerBehavior(cpuLoad float64, memoryRequest uint64, payloadSize uint, destination string, next fn) {
+	next(payloadSize, destination)
+}
+
+func intermediaryRequest(r *http.Request) *http.Request {
+	form := r.Form
+	form.Add("cpu_load", "")
+	form.Add("memory_request", "")
+	form.Add("payload", "")
+
+	r.Form = form
+	return r
+}
+
+func LeafRequestHandler(w http.ResponseWriter, r *http.Request) {
 	n_cpus := runtime.NumCPU()
 
-	mem := setMemUsage(1024 * 1024 * 1024 * 4)
+	mem := SetMemUsage(128)
 
-	load := .8
+	load := .1
 	for index := 0; index < n_cpus-1; index++ {
-		go forceCpuUsage(1000*5, load)
+		go ForceCpuUsage(1000*5, load)
 	}
 
-	forceCpuUsage(1000*5, load)
-	freeMemUsed(mem)
-	// w.Header().Set("Content-Type", "application/text")
+	ForceCpuUsage(1000*5, load)
+	FreeMemUsed(mem)
+	w.Header().Set("Content-Type", "text/plain")
 	w.Write(make([]byte, 256))
-}
-
-func forceCpuUsage(timeElapsed uint, load float64) time.Duration {
-	start := time.Now()
-	sleepTime := int64(100 * (1 - load))
-	var elapsed time.Duration
-	for {
-		unladenTime := time.Now().UnixNano() / int64(time.Millisecond)
-		if unladenTime%100 == 0 {
-			time.Sleep(time.Millisecond * time.Duration(sleepTime))
-		}
-		elapsed = time.Now().Sub(start)
-		if timeElapsed > 0 && uint(elapsed/time.Millisecond) >= timeElapsed {
-			break
-		}
-	}
-	return elapsed
-}
-
-func setMemUsage(b _Ctype_ulong) *_Ctype_char {
-	log.Printf("Allocating %d bytes of memory", b)
-	ptr := C.memory_allocation(b)
-	return ptr
-}
-
-func freeMemUsed(ptr *_Ctype_char) {
-	log.Print("Deallocating memory")
-	defer C.memory_deallocation(ptr)
-	runtime.GC()
-	runtime.GC()
-}
-
-func memUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGc = %v\n", m.NumGC)
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }
