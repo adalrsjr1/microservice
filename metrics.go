@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/process"
 )
 
@@ -60,9 +59,9 @@ func getProcInstance() *process.Process {
 	return proc
 }
 
-func SetMemUsage(b _Ctype_ulong) *_Ctype_char {
+func SetMemUsage(b uint64) *_Ctype_char {
 	log.Printf("Allocating %d bytes of memory", b)
-	ptr := C.memory_allocation(b)
+	ptr := C.memory_allocation(_Ctype_ulong(b))
 	return ptr
 }
 
@@ -93,13 +92,12 @@ func bToMb(b uint64) uint64 {
 	return b / 1024 / 1024
 }
 
-func Pid() int {
+func Pid(filename string) int {
 	pid := os.Getpid()
 
 	bpid := []byte(strconv.Itoa(pid))
-	procUUID := uuid.New().String()
 
-	pidFilename := fmt.Sprint("/tmp/", procUUID, ".pid")
+	pidFilename := fmt.Sprint(filename, ".pid")
 	ioutil.WriteFile(pidFilename, bpid, 0644)
 
 	return pid

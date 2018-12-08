@@ -1,106 +1,89 @@
 package main
 
 import (
-	"bytes"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
-	"runtime"
 	"strconv"
 
-	"github.com/gorilla/http"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+)
+
+var mimeType = "application/octet-stream"
+
+var (
+	name           string
+	payload        uint64
+	cpuLoad        float64
+	memoryRequest  uint64
+	processingTime uint
+	pidFilepath    string
 )
 
 func main() {
 
-	Pid()
+	flag.StringVar(&name, "name", uuid.New().String(), "Service name.")
+	flag.StringVar(&pidFilepath, "pid-path", "", "Path to save pid. Default (.) .")
+	flag.Uint64Var(&payload, "payload", 128, "Average size of payload sent in every messsages (bytes). Default = 128 bytes")
+	flag.Uint64Var(&memoryRequest, "memory", 1024, "Average size of memory allocated by each request (bytes). Default = 1024 bytes")
+	flag.UintVar(&processingTime, "processing-time", 100, "Average time in each request (ms). Default = 100 ms")
+	flag.Float64Var(&cpuLoad, "cpu-load", 0.01, "Average cpu load per request being processed (%). Default = 1%")
 
-	// var (
-	// 	name       string
-	// 	msgSize    uint
-	// 	load       float64
-	// 	msgTime    uint
-	// 	memUsage   uint
-	// 	zipkinAddr string
-	// 	isSampling bool
-	// )
+	flag.Parse()
 
-	// flag.StringVar(&zipkinAddr, "zipkin", "0.0.0.0:9411", "zipkin addr:port default 0.0.0.0:9411")
-	// flag.StringVar(&name, "name", "", "service name")
-	// flag.UintVar(&msgSize, "msg-size", 256, "average size in bytes default:256")
-	// flag.Float64Var(&load, "load", 0.1, "CPU load per message default:10% (0.1)")
-	// flag.UintVar(&msgTime, "msg-time", 10, "Time do compute an msg-request default 10ms")
-	// flag.UintVar(&memUsage, "mem", 128, "min memory usage default:128MB")
-	// flag.BoolVar(&isSampling, "sampling", true, "sampling messages to store into zipkin")
-	// flag.Parse()
-	// addrs := flag.Args()
-
-	// 	if len(name) <= 0 {
-	// 		log.Fatal("argument --name must be set")
-	// 	}
+	Pid(fmt.Sprint(pidFilepath, name))
 
 	r := mux.NewRouter()
-	r.HandleFunc("/cpu", CpuHandler)
-	r.HandleFunc("/memory", MemoryHandler)
-	r.HandleFunc("/call/{next}", IntermediaryRequestHandler)
-	r.HandleFunc("/", LeafRequestHandler)
+	r.HandleFunc("/cpu", cpuHandler)
+	r.HandleFunc("/memory", memoryHandler)
+	r.HandleFunc("/processAndCall", processAndCallHandler)
+	r.HandleFunc("/callAndProcess", callAndProcessHandler)
 	http.Handle("/", r)
 
 	log.Fatal(http.ListenAndServe(":8888", r))
 }
 
-func CpuHandler(w http.ResponseWriter, r *http.Request) {
+func cpuHandler(w http.ResponseWriter, r *http.Request) {
 	cpuPerc := GetCpuUsage()
 	w.Write([]byte(strconv.FormatFloat(cpuPerc, 'f', 10, 64)))
 }
 
-func MemoryHandler(w http.ResponseWriter, r *http.Request) {
+func memoryHandler(w http.ResponseWriter, r *http.Request) {
 	memUsage := GetMemUsage()
 	w.Write([]byte(strconv.FormatUint(memUsage, 10)))
 }
 
-func IntermediaryRequestHandler(w http.ResponseWriter, r *http.Request) {
-	payload := 128
+func processAndCallHandler(w http.ResponseWriter, r *http.Request) {
+	payloadSize := payload
 	destination := ""
-	cpuLoad := .3
-	memoryRequest := 128
-	innerBehavior(cpuLoad, memoryRequest, payload, destination, callNext)
+	cpuLoad := cpuLoad
+	memoryRequest := memoryRequest
+	timeToElaspseInMilliseconds := processingTime
+
+	behavior := RequestBeforeProcess{InnerBehaviorBase{cpuLoad: cpuLoad, memoryRequest: memoryRequest, timeToElaspseInMilliseconds: timeToElaspseInMilliseconds}}
+	result := innerBehavior(behavior, destination, payloadSize)
+
+	w.Header().Set("Content-Type", mimeType)
+	w.Write(result)
 }
 
-type fn func(uint, string)
-
-func callNext(payloadSize uint, destination string) {
-	if err := gorilla / http.Post(destination, bytes.NewReader(make([]byte, payloadSize))); err != nil {
-		log.Fatalf("could not post: %v", err)
-	}
+func innerBehavior(behavior InnerBehavior, destination string, payloadSize uint64) []byte {
+	result := behavior.Execute(destination, payloadSize)
+	return result
 }
 
-func innerBehavior(cpuLoad float64, memoryRequest uint64, payloadSize uint, destination string, next fn) {
-	next(payloadSize, destination)
-}
+func callAndProcessHandler(w http.ResponseWriter, r *http.Request) {
+	payloadSize := payload
+	destination := ""
+	cpuLoad := cpuLoad
+	memoryRequest := memoryRequest
+	timeToElaspseInMilliseconds := processingTime
 
-func intermediaryRequest(r *http.Request) *http.Request {
-	form := r.Form
-	form.Add("cpu_load", "")
-	form.Add("memory_request", "")
-	form.Add("payload", "")
+	behavior := ProcessBeforeRequest{InnerBehaviorBase{cpuLoad: cpuLoad, memoryRequest: memoryRequest, timeToElaspseInMilliseconds: timeToElaspseInMilliseconds}}
+	result := innerBehavior(behavior, destination, payloadSize)
 
-	r.Form = form
-	return r
-}
-
-func LeafRequestHandler(w http.ResponseWriter, r *http.Request) {
-	n_cpus := runtime.NumCPU()
-
-	mem := SetMemUsage(128)
-
-	load := .1
-	for index := 0; index < n_cpus-1; index++ {
-		go ForceCpuUsage(1000*5, load)
-	}
-
-	ForceCpuUsage(1000*5, load)
-	FreeMemUsed(mem)
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write(make([]byte, 256))
+	w.Header().Set("Content-Type", mimeType)
+	w.Write(result)
 }
