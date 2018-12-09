@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"runtime"
 
@@ -79,4 +80,30 @@ func request(destination string, payloadSize uint64) []byte {
 
 	return bytes
 
+}
+
+type ExternalBehavior struct {
+	lastChild int
+}
+
+func (base ExternalBehavior) RoundRobin(children []string, payload uint64, innerBehavior InnerBehavior) []byte {
+	result := innerBehavior.Execute(children[base.lastChild], payload)
+	base.lastChild = (len(children) + base.lastChild + 1) % len(children)
+	return result
+}
+
+func (base ExternalBehavior) Random(children []string, payload uint64, innerBehavior InnerBehavior) []byte {
+	next := rand.Intn(len(children))
+	result := innerBehavior.Execute(children[next], payload)
+	return result
+}
+
+func (base ExternalBehavior) All(children []string, payload uint64, innerBehavior InnerBehavior) []byte {
+	resultSize := 0
+	for i := 0; i < len(children); i++ {
+		result := innerBehavior.Execute(children[i], payload)
+		resultSize += len(result)
+	}
+
+	return make([]byte, resultSize/len(children))
 }
