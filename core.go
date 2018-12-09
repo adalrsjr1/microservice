@@ -22,6 +22,8 @@ var (
 	children       []string
 )
 
+var behaviorManager *BehaviorManager
+
 func main() {
 
 	flag.StringVar(&name, "name", uuid.New().String(), "Service name.")
@@ -37,15 +39,20 @@ func main() {
 
 	Pid(pidFilepath + name)
 
+	externalBehavior := NewExternalBehavior()
+	behaviorManager = NewBehaviorManager(externalBehavior)
+
 	r := mux.NewRouter()
-	r.HandleFunc("/cpu", cpuHandler)
-	r.HandleFunc("/memory", memoryHandler)
-	r.HandleFunc("/roundrobin/processAndCall", roundRobinProcessAndCall)
-	r.HandleFunc("/roundrobin/callAndProcess", roundRobinCallAndProcess)
-	r.HandleFunc("/random/processAndCall", randomProcessAndCall)
-	r.HandleFunc("/random/callAndProcess", randomCallAndProcess)
-	r.HandleFunc("/all/processAndCall", allProcessAndCall)
-	r.HandleFunc("/all/callAndProcess", allCallAndProcess)
+
+	r.Methods("Post", "Get").Path("/cpu").HandlerFunc(cpuHandler)
+	r.Methods("Post", "Get").Path("/memory").HandlerFunc(memoryHandler)
+	r.Methods("Post", "Get").Path("/roundrobin/processAndCall").HandlerFunc(roundRobinProcessAndCall)
+	r.Methods("Post", "Get").Path("/roundrobin/callAndProcess").HandlerFunc(roundRobinCallAndProcess)
+	r.Methods("Post", "Get").Path("/random/processAndCall").HandlerFunc(randomProcessAndCall)
+	r.Methods("Post", "Get").Path("/random/callAndProcess").HandlerFunc(randomCallAndProcess)
+	r.Methods("Post", "Get").Path("/all/processAndCall").HandlerFunc(allProcessAndCall)
+	r.Methods("Post", "Get").Path("/all/callAndProcess").HandlerFunc(allCallAndProcess)
+
 	http.Handle("/", r)
 
 	log.Fatal(http.ListenAndServe(":8888", r))
@@ -62,7 +69,14 @@ func memoryHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type BehaviorManager struct {
-	externalBehavior ExternalBehavior
+	externalBehavior *ExternalBehavior
+}
+
+func NewBehaviorManager(externalBehavior *ExternalBehavior) *BehaviorManager {
+	manager := new(BehaviorManager)
+	manager.externalBehavior = externalBehavior
+
+	return manager
 }
 
 func (b BehaviorManager) roundRobin(children []string, innerBehavior InnerBehavior, w http.ResponseWriter) []byte {
@@ -88,42 +102,30 @@ func (b BehaviorManager) all(children []string, innerBehavior InnerBehavior, w h
 
 func roundRobinProcessAndCall(w http.ResponseWriter, r *http.Request) {
 	behavior := ProcessBeforeRequest{InnerBehaviorBase{cpuLoad: cpuLoad, memoryRequest: memoryRequest, timeToElaspseInMilliseconds: processingTime}}
-	manager := BehaviorManager{externalBehavior: ExternalBehavior{}}
-
-	manager.roundRobin(children, behavior, w)
+	behaviorManager.roundRobin(children, behavior, w)
 }
 
 func roundRobinCallAndProcess(w http.ResponseWriter, r *http.Request) {
 	behavior := RequestBeforeProcess{InnerBehaviorBase{cpuLoad: cpuLoad, memoryRequest: memoryRequest, timeToElaspseInMilliseconds: processingTime}}
-	manager := BehaviorManager{externalBehavior: ExternalBehavior{}}
-
-	manager.roundRobin(children, behavior, w)
+	behaviorManager.roundRobin(children, behavior, w)
 }
 
 func randomProcessAndCall(w http.ResponseWriter, r *http.Request) {
 	behavior := ProcessBeforeRequest{InnerBehaviorBase{cpuLoad: cpuLoad, memoryRequest: memoryRequest, timeToElaspseInMilliseconds: processingTime}}
-	manager := BehaviorManager{externalBehavior: ExternalBehavior{}}
-
-	manager.random(children, behavior, w)
+	behaviorManager.random(children, behavior, w)
 }
 
 func randomCallAndProcess(w http.ResponseWriter, r *http.Request) {
 	behavior := RequestBeforeProcess{InnerBehaviorBase{cpuLoad: cpuLoad, memoryRequest: memoryRequest, timeToElaspseInMilliseconds: processingTime}}
-	manager := BehaviorManager{externalBehavior: ExternalBehavior{}}
-
-	manager.random(children, behavior, w)
+	behaviorManager.random(children, behavior, w)
 }
 
 func allProcessAndCall(w http.ResponseWriter, r *http.Request) {
 	behavior := ProcessBeforeRequest{InnerBehaviorBase{cpuLoad: cpuLoad, memoryRequest: memoryRequest, timeToElaspseInMilliseconds: processingTime}}
-	manager := BehaviorManager{externalBehavior: ExternalBehavior{}}
-
-	manager.all(children, behavior, w)
+	behaviorManager.all(children, behavior, w)
 }
 
 func allCallAndProcess(w http.ResponseWriter, r *http.Request) {
 	behavior := RequestBeforeProcess{InnerBehaviorBase{cpuLoad: cpuLoad, memoryRequest: memoryRequest, timeToElaspseInMilliseconds: processingTime}}
-	manager := BehaviorManager{externalBehavior: ExternalBehavior{}}
-
-	manager.all(children, behavior, w)
+	behaviorManager.all(children, behavior, w)
 }

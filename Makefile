@@ -2,7 +2,7 @@
 
 IMAGE=adalrsjr1/microservice
 
-all: clean microservice image
+all: clean image
 
 microservice: core.go
 	env GOOS=linux GOARCH=amd64 CGO_ENABLED="1" go build -tags netgo .

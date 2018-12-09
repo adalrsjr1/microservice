@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  svc1:
+    image: adalrsjr1/microservice
+    container_name: svc1
+    ports:
+      - 8888:8888
+    depends_on:
+      - svc2
+      - svc3
+    command: --name=svc1 svc2 svc3
+
+  svc2:
+    image: adalrsjr1/microservice
+    container_name: svc2
+    depends_on:
+      - svc4
+    command: --name=svc2 svc4
+
+  svc3:
+    image: adalrsjr1/microservice
+    container_name: svc3
+    command: --name=svc3 
+
+  svc4:
+    image: adalrsjr1/microservice
+    container_name: svc4
+    command: --name=svc4 
