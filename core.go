@@ -20,6 +20,7 @@ var (
 	processingTime uint
 	pidFilepath    string
 	children       []string
+	addr           string
 )
 
 var behaviorManager *BehaviorManager
@@ -32,6 +33,7 @@ func main() {
 	flag.Uint64Var(&memoryRequest, "memory", 1024, "Average size of memory allocated by each request (bytes). Default = 1024 bytes")
 	flag.UintVar(&processingTime, "processing-time", 100, "Average time in each request (ms). Default = 100 ms")
 	flag.Float64Var(&cpuLoad, "cpu-load", 0.01, "Average cpu load per request being processed (%). Default = 1%")
+	flag.StringVar(&addr, "addr", ":8888", "Addr being used - To use a port value between 8000-8999. Default = :8888")
 
 	flag.Parse()
 
@@ -55,7 +57,7 @@ func main() {
 
 	http.Handle("/", r)
 
-	log.Fatal(http.ListenAndServe(":8888", r))
+	log.Fatal(http.ListenAndServe(addr, r))
 }
 
 func cpuHandler(w http.ResponseWriter, r *http.Request) {

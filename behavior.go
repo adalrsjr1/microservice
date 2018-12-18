@@ -100,6 +100,7 @@ func NewExternalBehavior() *ExternalBehavior {
 	return externalBehavior
 }
 
+// RoundRobin TODO: there is a bug here
 func (base *ExternalBehavior) RoundRobin(children []string, payload uint64, innerBehavior InnerBehavior) []byte {
 	log.Println(children)
 

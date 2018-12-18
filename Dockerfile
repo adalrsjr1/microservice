@@ -12,5 +12,5 @@ RUN cd /src/microservice && make microservice
 FROM bitnami/minideb:latest
 WORKDIR /home
 COPY --from=0 /src/microservice/microservice /usr/local/bin/
-EXPOSE 8888
+EXPOSE 8000-8999
 ENTRYPOINT ["/usr/local/bin/microservice"]

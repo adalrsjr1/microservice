@@ -1,11 +1,11 @@
 from yaml import dump, dump_all, load
 import sys
+import argparse
 import networkx as nx
 import matplotlib.pyplot as plt
 from networkx.drawing.nx_agraph import graphviz_layout
 from collections import OrderedDict
 import pprint
-
 
 class Graph:
     def __init__(self, n_nodes, seed=31, star=False):
@@ -60,29 +60,122 @@ class Graph:
         nx.draw_networkx_labels(self.g, pos, labels)
         plt.savefig('graph.pdf')
 
+class Microservice:
+    def __init__(self, name, children, isRoot=False, image='adalrsjr1/microservice'):
+        self.name = name
+        """ bytes """
+        self.payload = 128          # bytes
+        """ percentage """
+        self.cpuLoad = 0.01         # percentage
+        """ bytes """
+        self.memoryRequest = 1024   # bytes
+        """ milliseconds """
+        self.processingTime = 100   # ms
+        self.pidFilepath = '/tmp'
+        """ list """
+        self.children = children    # list
+        """ ip:port """
+        self.addr = ':8888'            # ip:port
+        self.isRoot = isRoot
+        self.image = image
+
+    def dockerService(self, portToPublish='8888:8888'):
+        strchildren = ' '.join(self.children)
+
+        service = {
+            'image': self.image,
+            'container_name': self.name,
+            'depends_on': self.children, 
+            'command': '\
+                --name=%s \
+                --pid-path=%s \
+                --payload=%s \
+                --memory=%s \
+                --processing-time=%s \
+                --cpu-load=%s \
+                --addr=%s \
+                %s ' % (self.name, self.pidFilepath, self.payload, self.memoryRequest, self.processingTime, self.cpuLoad, self.addr, strchildren)
+        }
+
+        if self.isRoot:
+            service['ports'] = [portToPublish]
+
+        return service
+
+    def kubernetesDeployment(self, namespace='uapp', replicas=1, nodename='', portToPublish='8888'):
+        nodeSelector = {
+            'beta.kubernetes.io/os': 'linux'
+        }
+        if bool(nodename):
+            nodeSelector['kubernetes.io/hostname'] = nodename
+
+        return {
+            'apiVersion': 'apps/v1',
+            'kind': 'Deployment',
+            'metadata': {
+                'name': self.name,
+                'namespace': namespace,
+                'labels': {'app': self.name}
+            },
+            'spec': {
+                'replicas': replicas,
+                'selector': {
+                    'matchLabels': {
+                        'app': self.name
+                    }
+                },
+                'template': {
+                    'metadata': {
+                        'labels': {
+                            'app': self.name
+                        }
+                    },
+                    'spec': {
+                        'containers': [{
+                            'name': self.name,
+                            'image': self.image,
+                            'imagePullPolicy': 'Always',
+                            'ports': [{'containerPort': int(portToPublish)}],
+                            'args': [
+                                '--name=%s' % self.name,
+                                '--pid-path=%s' % self.pidFilepath,
+                                '--payload=%s' % self.payload,
+                                '--memory=%s' % self.memoryRequest,
+                                '--processing-time=%s' % self.processingTime,
+                                '--cpu-load=%s' % self.cpuLoad,
+                                '--addr=%s' % self.addr
+                            ] + self.children,
+                        }],
+                        'nodeSelector': nodeSelector
+                    }
+                }
+            }
+        }
 
 class DockerCompose:
     def __init__(self, graph):
         self.g = graph
         self.scheme = {}
 
-    def create(self, svc_prefix, zipkin, msgsize, load, msgtime, mem):
+    def create(self, svc_prefix, payload=128, memoryRequest=1024, processingTime=100, cpuLoad=0.01):
         adjacency = g.adjacency()
         name_prefix = svc_prefix
         svcs = {}
 
         for key, value in adjacency.iteritems():
-            childs = [name_prefix+str(child) for child, v in value.iteritems()]
-            svcs[name_prefix+str(key)] = self.__createservice(
-                        name_prefix+str(key),
-                        zipkin,
-                        msgsize,
-                        load,
-                        msgtime,
-                        mem,
-                        childs,
-                        True if key == 0 else False
-                    )
+            children = [name_prefix+str(child) for child, v in value.iteritems()]
+
+            microservice = Microservice(
+                        name=name_prefix+str(key),
+                        isRoot= True if key == 0 else False,
+                        children=children)
+
+            microservice.payload = payload
+            microservice.memoryRequest = memoryRequest
+            microservice.processingTime = processingTime
+            microservice.cpuLoad = cpuLoad
+
+            svcs[name_prefix+str(key)] = microservice.dockerService() 
 
         services = {}
         services['version'] = '3'
@@ -90,21 +183,6 @@ class DockerCompose:
         self.scheme = services
 
         return services
-
-    def __createservice(self, name, zipkin, msgsize, load, msgtime, mem, childs, isRoot=False):
-        strchilds = ' '.join(childs)
-        svc = {
-            'image': 'adalrsjr1/microservice',
-            'container_name': name,
-            'command': '--name=%s --zipkin=%s --msg-size=%s --msg-time=%s --load=%s --mem=%s %s' % \
-            (name, zipkin, msgsize, msgtime, load, mem, strchilds),
-            'depends_on': childs
-        }
-
-        if isRoot:
-            svc['ports'] = ['8080:8080']
-
-        return svc
 
     def dump(self, out=sys.stdout):
         dump(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
@@ -117,7 +195,7 @@ class Kubernetes:
     def dump(self, out=sys.stdout):
         dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
-    def create(self, uappName, svc_prefix, msgsize, load, msgtime, mem, sampling, nodename=''):
+    def create(self, uappName, svc_prefix, nodename='', payload=128, memoryRequest=1024, processingTime=100, cpuLoad=0.01):
         yamlFiles = [self.namespace(uappName)]
 
         adjacency = g.adjacency()
@@ -125,20 +203,18 @@ class Kubernetes:
         args = {}
 
         for key, value in adjacency.iteritems():
-            childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.iteritems()]
+            children = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.iteritems()]
             name = name_prefix+str(key)
-            args['name'] = name
-            args['msgsize'] = msgsize
-            args['load'] = load
-            args['msgtime'] = msgtime
-            args['mem'] = mem
-            args['sampling'] = sampling
-            args['childs'] = childs
 
-            root=not bool(key)
+            microservice = Microservice(name, children, isRoot=not bool(key))
+            microservice.payload = payload
+            microservice.memoryRequest = memoryRequest
+            microservice.processingTime = processingTime
+            microservice.cpuLoad = cpuLoad
 
-            yamlFiles.append(self.service(name, uappName, root=root))
-            yamlFiles.append(self.deployment(name, uappName, args, sampling=sampling, nodename=nodename))
+            yamlFiles.append(self.service(name, uappName, root=microservice.isRoot))
+
+            yamlFiles.append(microservice.kubernetesDeployment(namespace=uappName, replicas=1))
 
         self.scheme = yamlFiles
         return yamlFiles
@@ -174,8 +250,8 @@ class Kubernetes:
         }
 
         port = {
-            'port': 8080,
-            'targetPort': 8080,
+            'port': 8888,
+            'targetPort': 8888,
             'protocol': 'TCP',
             'name': 'http'
         }
@@ -188,72 +264,27 @@ class Kubernetes:
 
         return spec
 
-    def deployment(self, name, namespace, args, sampling=True, nodename=''):
-        nodeSelector = {
-            'beta.kubernetes.io/os': 'linux'
-        }
-        if bool(nodename):
-            nodeSelector['kubernetes.io/hostname'] = nodename
+if __name__=='__main__':
 
-        return {
-            'apiVersion': 'apps/v1',
-            'kind': 'Deployment',
-            'metadata': {
-                'name': name,
-                'namespace': namespace,
-                'labels': {'app': name}
-            },
-            'spec': {
-                'replicas': 1,
-                'selector': {
-                    'matchLabels': {
-                        'app': name
-                    }
-                },
-                'template': {
-                    'metadata': {
-                        'labels': {
-                            'app': name
-                        }
-                    },
-                    'spec': {
-                        'containers': [{
-                            'name': name,
-                            'image': 'adalrsjr1/microservice:latest',
-                            'imagePullPolicy': 'Always',
-                            'ports': [{'containerPort': 8080}],
-                            'args': [
-                                '--name=%s' % name,
-                                '--zipkin=$(ZIPKIN):9411',
-                                '--sampling=%s' % args['sampling'],
-                                '--msg-size=%s' % args['msgsize'],
-                                '--load=%s' % args['load'],
-                                '--msg-time=%s' % args['msgtime'],
-                                '--mem=%s' % args['mem']
-                            ] + args['childs'],
-                            'env': [
-                                {'name': 'ZIPKIN',
-                                'value': 'zipkin.zipkin.svc.cluster.local'}
-                            ]
-                        }],
-                        'nodeSelector': nodeSelector
-                    }
-                }
-            }
-        }
+    parser = argparse.ArgumentParser(description="Create deployment file")
+    
 
-
-
-if __name__=="__main__":
-    g = Graph(3, 31)
+    # number of nodes
+    # payload
+    # memory
+    # processingTime
+    # cpuLoad
+    # kubernetes vs docker
+    g = Graph(30, 31)
     dc = DockerCompose(g)
-    dc.create('svc_', 'zipkin:9411', '100', '0.35', '100', '0')
+    
+    dc.create('svc_')
     compose = open('test.yaml','w')
     dc.dump(out=compose)
     g.save()
 
     k = Kubernetes(g)
-    k.create('uapp', 'svc-', '100', '0.35','100','0',True)
+    k.create('uapp', 'svc-')
     kubernetes = open('k8s.yaml', 'w')
     k.dump(out=kubernetes)
 
