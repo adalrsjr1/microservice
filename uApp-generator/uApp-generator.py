@@ -265,7 +265,7 @@ class Kubernetes:
         return spec
 
 if __name__=='__main__':
-
+    # https://docs.python.org/3.3/library/argparse.html
     parser = argparse.ArgumentParser(description="Create deployment file")
     
 
