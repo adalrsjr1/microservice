@@ -24,9 +24,9 @@ type InnerBehaviorBase struct {
 func (base InnerBehaviorBase) doSomething() {
 	id := uuid.New().String()
 	log.Printf("processing %v cpu=%v memory=%v", id, base.cpuLoad, base.memoryRequest)
-
+	
 	nCpus := runtime.NumCPU()
-
+	
 	mem := SetMemUsage(base.memoryRequest)
 	load := base.cpuLoad
 

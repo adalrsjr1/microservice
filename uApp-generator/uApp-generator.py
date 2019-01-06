@@ -18,7 +18,7 @@ class Graph:
         if star:
             m = n_nodes-1
         g = nx.barabasi_albert_graph(n_nodes, m, seed=seed)
-
+        
         dag = nx.DiGraph()
 
         edges = nx.dfs_tree(g, 0).edges()
@@ -264,39 +264,41 @@ class Kubernetes:
 
         return spec
 
+def runOnKubernetes(graph, nodes, payload, memory, processingTime, cpuLoad):
+    k = Kubernetes(graph)
+    k.create('uapp', 'svc-')
+    kubernetes = open('k8s--%s.yaml' % (createName(nodes, payload, memory, processingTime, cpuLoad)), 'w')
+    k.dump(out=kubernetes)
+
+def runOnDocker(graph, nodes, payload, memory, processingTime, cpuLoad):
+    dc = DockerCompose(graph)
+    dc.create('svc_')
+    compose = open('docker--%s' % (createName(nodes, payload, memory, processingTime, cpuLoad)),'w')
+    dc.dump(out=compose)
+    g.save()
+
+def createName(nodes, payload, memory, processingTime, cpuLoad):
+    return "app-nodes_%s-payload_%s-memory_%s-processingTime_%s-cpuLoad_%s" % (nodes, payload, memory, processingTime, cpuLoad)
+
 if __name__=='__main__':
     # https://docs.python.org/3.3/library/argparse.html
     parser = argparse.ArgumentParser(description="Create deployment file")
     
-
-    # number of nodes
-    # payload
-    # memory
-    # processingTime
-    # cpuLoad
-    # kubernetes vs docker
-    g = Graph(30, 31)
-    dc = DockerCompose(g)
+    parser.add_argument('-n', '--nodes', help='number of instances -- default=10', type=int, default=10)
+    parser.add_argument('-p', '--payload', help='size of message payload (bytes) -- default=128', type=int, default=128)
+    parser.add_argument('-m','--memory', help='amount of message to be allocated for a mock message (bytes) -- default=128', type=int, default=128)
+    parser.add_argument('-t','--processing-time', help='time to process a mock message (ms) -- default=1', type=int, default=1)
+    parser.add_argument('-c','--cpu-load', help='cpu load to process a message (%%) -- default=0.1', type=float, default=0.1)
+    parser.add_argument('-k','--kubernetes', help='if true ues k8s otherwise docker compose -- default=True', type=bool, default=True)
     
-    dc.create('svc_')
-    compose = open('test.yaml','w')
-    dc.dump(out=compose)
-    g.save()
 
-    k = Kubernetes(g)
-    k.create('uapp', 'svc-')
-    kubernetes = open('k8s.yaml', 'w')
-    k.dump(out=kubernetes)
+    args = parser.parse_args()
 
-    #yaml = YAML()
-    #yaml.dump(svc, sys.stdout)
+    g = Graph(args.nodes, 31)
 
+    if args.kubernetes:
+        runOnKubernetes(g, args.nodes, args.payload, args.memory, args.processing_time, args.cpu_load)
+    else:
+        runOnDocker(g, args.nodes, args.payload, args.memory, args.processing_time, args.cpu_load)
 
-    #g = Graph(20, 42, False)
-    #print(g.check())
-    #g.draw()
-
-    #h = Graph(20, 42, True)
-    #print(h.check())
-    #h.draw()
-
+    exit(0)
