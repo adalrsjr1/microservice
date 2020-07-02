@@ -13,6 +13,7 @@ A tiny golang application simulating a microservice. It
 ### Using Go natively
 
 ```bash
+go  get -u
 make microservice
 ```
 
@@ -40,4 +41,22 @@ The following example will start a microservice and attempt to connect to a diff
 
 ```bash
 ./microservice -name=micro -zipkin=zipkin:9411 test-host
+```
+
+#### To test using docker-compose
+
+```bash
+docker-compose -f zipkin_docker-compose.yaml -f docker-compose.custom.yml
+```
+
+#### In another bash or on browser
+
+To exercise all endpoints:
+
+```
+curl -I -XPOST localhost:8080/
+```
+or to exercise few endpoints at random
+```
+curl -I -XPOST localhost:8080/random
 ```

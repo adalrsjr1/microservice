@@ -71,8 +71,8 @@ class DockerCompose:
         name_prefix = svc_prefix
         svcs = {}
 
-        for key, value in adjacency.iteritems():
-            childs = [name_prefix+str(child) for child, v in value.iteritems()]
+        for key, value in adjacency.items():
+            childs = [name_prefix+str(child) for child, v in value.items()]
             svcs[name_prefix+str(key)] = self.__createservice(
                         name_prefix+str(key),
                         zipkin,
@@ -124,8 +124,8 @@ class Kubernetes:
         name_prefix = svc_prefix
         args = {}
 
-        for key, value in adjacency.iteritems():
-            childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.iteritems()]
+        for key, value in adjacency.items():
+            childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
             name = name_prefix+str(key)
             args['name'] = name
             args['msgsize'] = msgsize
@@ -247,7 +247,7 @@ if __name__=="__main__":
     dc.create('svc_', 'zipkin:9411', '100', '0.35', '100', '0')
     compose = open('test.yaml','w')
     dc.dump(out=compose)
-    g.save()
+    #g.save()
 
     k = Kubernetes(g)
     k.create('uapp', 'svc-', '100', '0.35','100','0',True)
