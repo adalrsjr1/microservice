@@ -1,0 +1,525 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uapp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-0
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    nodePort: 30001
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-0
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-0
+  name: svc-0
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-0
+  template:
+    metadata:
+      labels:
+        app: svc-0
+    spec:
+      containers:
+      - args:
+        - --name=svc-0
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        - svc-2.uapp.svc.cluster.local
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-0
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-2
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-2
+  name: svc-2
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-2
+  template:
+    metadata:
+      labels:
+        app: svc-2
+    spec:
+      containers:
+      - args:
+        - --name=svc-2
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        - svc-1.uapp.svc.cluster.local
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-2
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-1
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-1
+  name: svc-1
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-1
+  template:
+    metadata:
+      labels:
+        app: svc-1
+    spec:
+      containers:
+      - args:
+        - --name=svc-1
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        - svc-4.uapp.svc.cluster.local
+        - svc-6.uapp.svc.cluster.local
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-1
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-4
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-4
+  name: svc-4
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-4
+  template:
+    metadata:
+      labels:
+        app: svc-4
+    spec:
+      containers:
+      - args:
+        - --name=svc-4
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        - svc-3.uapp.svc.cluster.local
+        - svc-5.uapp.svc.cluster.local
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-4
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-6
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-6
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-6
+  name: svc-6
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-6
+  template:
+    metadata:
+      labels:
+        app: svc-6
+    spec:
+      containers:
+      - args:
+        - --name=svc-6
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-6
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-3
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-3
+  name: svc-3
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-3
+  template:
+    metadata:
+      labels:
+        app: svc-3
+    spec:
+      containers:
+      - args:
+        - --name=svc-3
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        - svc-8.uapp.svc.cluster.local
+        - svc-9.uapp.svc.cluster.local
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-3
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-5
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-5
+  name: svc-5
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-5
+  template:
+    metadata:
+      labels:
+        app: svc-5
+    spec:
+      containers:
+      - args:
+        - --name=svc-5
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-5
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-8
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-8
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-8
+  name: svc-8
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-8
+  template:
+    metadata:
+      labels:
+        app: svc-8
+    spec:
+      containers:
+      - args:
+        - --name=svc-8
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        - svc-7.uapp.svc.cluster.local
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-8
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-9
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-9
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-9
+  name: svc-9
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-9
+  template:
+    metadata:
+      labels:
+        app: svc-9
+    spec:
+      containers:
+      - args:
+        - --name=svc-9
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-9
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-7
+  namespace: uapp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: svc-7
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: svc-7
+  name: svc-7
+  namespace: uapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-7
+  template:
+    metadata:
+      labels:
+        app: svc-7
+    spec:
+      containers:
+      - args:
+        - --name=svc-7
+        - --zipkin=$(ZIPKIN):9411
+        - --sampling=True
+        - --msg-size=100
+        - --load=0.35
+        - --msg-time=100
+        - --mem=0
+        env:
+        - name: ZIPKIN
+          value: zipkin.zipkin.svc.cluster.local
+        image: adalrsjr1/microservice:latest
+        imagePullPolicy: Always
+        name: svc-7
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        beta.kubernetes.io/os: linux
