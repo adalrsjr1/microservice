@@ -20,7 +20,7 @@ make microservice
 ## Usage
 
 ```bash
-Usage of ./micro-sock:
+Usage of ./microservice:
   -name string
         service name
   -zipkin string
@@ -46,7 +46,7 @@ The following example will start a microservice and attempt to connect to a diff
 #### To test using docker-compose
 
 ```bash
-docker-compose -f zipkin_docker-compose.yaml -f docker-compose.custom.yml
+docker-compose -f zipkin_docker-compose.yaml -f docker-compose.custom.yml up
 ```
 
 #### In another bash or on browser
