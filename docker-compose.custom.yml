@@ -9,7 +9,7 @@ services:
     depends_on:
       - back-end-1
       - back-end-2
-    command: --name=front-end --msg-size=128 --msg-time=10 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
+    command: --name=front-end --x=4.9 --y=4.9 --msg-size=128 --msg-time=10000 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
     #command: --name=front-end --msg-size=128 --msg-time=10 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
 
   back-end-1:
@@ -18,7 +18,7 @@ services:
     depends_on:
       - back-end-3
       - back-end-4
-    command: --name=back-end-1 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
+    command: --name=back-end-1 --x=4.9 --y=4.9 --msg-size=256 --msg-time=10000 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
     #command: --name=back-end-1 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
 
   back-end-2:
@@ -26,25 +26,25 @@ services:
     container_name: back-end-2
     depends_on:
       - back-end-5
-    command: --name=back-end-2 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-5
+    command: --name=back-end-2 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-5
     #command: --name=back-end-2 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-5
 
   back-end-3:
     image: adalrsjr1/microservice
     container_name: back-end-3
-    command: --name=back-end-3 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
+    command: --name=back-end-3 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
     #command: --name=back-end-3 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
 
   back-end-4:
     image: adalrsjr1/microservice
     container_name: back-end-4
-    command: --name=back-end-4 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
+    command: --name=back-end-4 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
     #command: --name=back-end-4 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
 
   back-end-5:
     image: adalrsjr1/microservice
     container_name: back-end-5
-    command: --name=back-end-5 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
+    command: --name=back-end-5 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
     #command: --name=back-end-5 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
 
 

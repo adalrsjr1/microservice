@@ -112,7 +112,7 @@ func himmelblau(x float64, y float64) uint {
 		// For now, setting it to 100% - can write a function later
 		pct = 1
 	}
-	// this can be changed; let's use 1024mb as our maximum and 0mb as our minimum
-	val := uint(float64(512) * pct) // note that we're changing it to a uint32 => nearest integer val
+	// this can be changed; let's use 1024 as our maximum and 0 as our minimum
+	val := uint(float64(1024) * pct) // note that we're changing it to a uint32 => nearest integer val
 	return val
 }
