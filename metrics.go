@@ -6,16 +6,21 @@ import (
 	"time"
 )
 
+var (
+  epsilon = 32
+)
+
 func SetMemUsage(b uint) *[][]int8 {
 	var overall [][]int8
 	var i uint
+
 	for ; i < b; i++ {
 
-		a := make([]int8, 0, 999999)
+		a := make([]int8, 0, 1048576 * epsilon)
 		overall = append(overall, a)
 
 		memUsage()
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 10)
 
 	}
 
@@ -42,7 +47,7 @@ func memUsage() {
 }
 
 func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
+	return b / uint64(epsilon) / 1024 / 1024
 }
 
 // https://caffinc.github.io/2016/03/cpu-load-generator/
