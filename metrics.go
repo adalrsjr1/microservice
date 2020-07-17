@@ -7,31 +7,20 @@ import (
 	"time"
 )
 
-<<<<<<< HEAD
 var (
-  epsilon = 32
+	epsilon = 32
 )
 
-func SetMemUsage(b uint) *[][]int8 {
-	var overall [][]int8
-	var i uint
-
-=======
 func SetMemUsage(x float64, y float64) *[][]int8 {
 	var overall [][]int8
 	var i uint
 	b := himmelblau(x, y)
->>>>>>> Add two functions to represent CPU load and memory usage
 	for ; i < b; i++ {
-
-		a := make([]int8, 0, 1048576 * epsilon)
+		a := make([]int8, 0, 1048576*epsilon)
 		overall = append(overall, a)
-
 		memUsage()
 		time.Sleep(time.Millisecond * 10)
-
 	}
-
 	memUsage()
 	return &overall
 }
