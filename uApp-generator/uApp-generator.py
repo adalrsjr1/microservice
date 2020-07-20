@@ -252,27 +252,34 @@ class Kubernetes:
                 'manifests': [{
                     'name': 'acmeair-tuning',
                     'namespace': 'default',
-                    'params': [{
+                    'params': [
+                        {
                         'name': 'parameter_A',
                         'number': {
                             'lower': 1,
                             'upper': 15,
                             'step': 1,
                             'continuous': 'true'
+                            }
                         },
+                        {
                         'name': 'parameter_B',
                         'number': {
                             'lower': 256,
                             'upper': 1024,
                             'step': 16,
                             'continuous': 'false'
+                            }
                         },
+                        {
                         'name': 'parameter_C',
                         'number': {
                             'lower': 0,
                             'upper': 1,
                             'continuous': 'true'
+                            },
                         },
+                        {
                         'name': 'gc',
                         'options': {
                             'type': 'string',
@@ -290,7 +297,47 @@ class Kubernetes:
             }
         }
 
+class ConfigMap:
+    def __init__(self, graph):
+        self.g = graph
+        self.scheme = []
 
+    def dump(self, out=sys.stdout):
+        dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
+
+    def create(self, uappName, svc_prefix, msgsize, load, msgtime, mem, sampling, x, y, nodename=''):
+        yamlFiles = []
+        adjacency = g.adjacency()
+        name_prefix = svc_prefix
+        args = {}
+
+        for key, value in adjacency.items():
+            childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
+            name = name_prefix+str(key)
+
+            yamlFiles.append(self.config_map(name, msgsize, load, msgtime, mem, sampling, x, y))
+            
+        self.scheme = yamlFiles
+        return yamlFiles
+
+    def config_map(self, name, msgsize, load, msgtime, mem, sampling, x, y):
+        config_map_name = name + '-configmap'
+        return {
+            'apiVersion': 'v1',
+            'kind': 'ConfigMap',
+            'metadata': {
+                'name': config_map_name,
+                'namespace': 'default'
+            },
+            'data': {
+                'name': name,
+                'mem': mem,
+                'msg-time': msgtime,
+                'msg-size': msgsize,
+                'x': x,
+                'y': y
+            }
+        }
 
 if __name__=="__main__":
     g = Graph(10)
@@ -304,3 +351,8 @@ if __name__=="__main__":
     k.create('uapp', 'svc-', '100', '0.35','100','0',True)
     kubernetes = open('K8s.yaml', 'w')
     k.dump(out=kubernetes)
+
+    c = ConfigMap(g)
+    c.create('uapp', 'svc-', '100', '0.35', '100', '0', True, '2', '3')
+    configmap = open("configMap.yaml", 'w')
+    c.dump(out=configmap)
