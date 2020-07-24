@@ -334,6 +334,9 @@ func TerminationRequest(client *zipkinhttp.Client, name string, targets []string
 			//Set 'Value' as the location that sent the request
 			req.Value = r.RemoteAddr
 
+			log.Printf("Currently in: %s", globalName)
+			log.Printf("The load: %f", load)
+
 			bufferReader.Push(req)
 
 			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
