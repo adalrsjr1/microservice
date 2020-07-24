@@ -65,7 +65,7 @@ class DockerCompose:
         self.g = graph
         self.scheme = {}
 
-    def create(self, svc_prefix, zipkin, msgsize, load, msgtime, mem):
+    def create(self, svc_prefix, zipkin, msgsize, msgtime, x, y):
         adjacency = g.adjacency()
         name_prefix = svc_prefix
         svcs = {}
@@ -76,9 +76,9 @@ class DockerCompose:
                         name_prefix+str(key),
                         zipkin,
                         msgsize,
-                        load,
                         msgtime,
-                        mem,
+                        x,
+                        y,
                         childs,
                         True if key == 0 else False
                     )
@@ -90,13 +90,13 @@ class DockerCompose:
 
         return services
 
-    def __createservice(self, name, zipkin, msgsize, load, msgtime, mem, childs, isRoot=False):
+    def __createservice(self, name, zipkin, msgsize, msgtime, x, y, childs, isRoot=False):
         strchilds = ' '.join(childs)
         svc = {
             'image': 'adalrsjr1/microservice',
             'container_name': name,
-            'command': '--name=%s --zipkin=%s --msg-size=%s --msg-time=%s --load=%s --mem=%s %s' % \
-            (name, zipkin, msgsize, msgtime, load, mem, strchilds),
+            'command': '--name=%s --zipkin=%s --msg-size=%s --msg-time=%s --x=%s --y=%s %s' % \
+            (name, zipkin, msgsize, msgtime, x, y, strchilds),
             'depends_on': childs
         }
 
@@ -116,7 +116,7 @@ class Kubernetes:
     def dump(self, out=sys.stdout):
         dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
-    def create(self, uappName, svc_prefix, msgsize, load, msgtime, mem, sampling, nodename=''):
+    def create(self, uappName, svc_prefix, msgsize, msgtime, x, y, sampling, nodename=''):
         yamlFiles = [self.namespace(uappName)]
 
         adjacency = g.adjacency()
@@ -128,9 +128,9 @@ class Kubernetes:
             name = name_prefix+str(key)
             args['name'] = name
             args['msgsize'] = msgsize
-            args['load'] = load
             args['msgtime'] = msgtime
-            args['mem'] = mem
+            args['x'] = x
+            args['y'] = y
             args['sampling'] = sampling
             args['childs'] = childs
 
@@ -138,7 +138,7 @@ class Kubernetes:
 
             yamlFiles.append(self.service(name, uappName, root=root))
             yamlFiles.append(self.deployment(name, uappName, args, sampling=sampling, nodename=nodename))
-            yamlFiles.append(self.searchspace())
+            yamlFiles.append(self.searchspace(name, uappName))
 
         self.scheme = yamlFiles
         return yamlFiles
@@ -222,17 +222,22 @@ class Kubernetes:
                             'imagePullPolicy': 'Always',
                             'ports': [{'containerPort': 8080}],
                             'args': [
-                                '--name=%s' % name,
+                                '--name=$(NAME)',
                                 '--zipkin=$(ZIPKIN):9411',
                                 '--sampling=%s' % args['sampling'],
-                                '--msg-size=%s' % args['msgsize'],
-                                '--load=%s' % args['load'],
-                                '--msg-time=%s' % args['msgtime'],
-                                '--mem=%s' % args['mem']
+                                '--msg-size=$(MSG_SIZE)',
+                                '--msg-time=$(MSG_TIME)',
+                                '--x=$(X_VALUE)',
+                                '--y=$(Y_VALUE)'
                             ] + args['childs'],
                             'env': [
                                 {'name': 'ZIPKIN',
                                 'value': 'zipkin.zipkin.svc.cluster.local'}
+                            ]
+                            ,
+                            'envFrom': [
+                              {'configMapRef': {
+                                'name': name + '-configmap'}}
                             ]
                         }],
                         'nodeSelector': nodeSelector
@@ -241,17 +246,17 @@ class Kubernetes:
             }
         }
     
-    def searchspace(self):
+    def searchspace(self, name, namespace):
         return {
             'apiVersion': 'smarttuning.ibm.com/v1alpha1',
             'kind': 'SearchSpace',
             'metadata': {
-                'name': 'acmeair-searchspace'
+                'name': name + '-searchspace'
             },
             'spec': {
                 'manifests': [{
                     'name': 'acmeair-tuning',
-                    'namespace': 'default',
+                    'namespace': namespace,
                     'params': [
                         {
                         'name': 'parameter_A',
@@ -259,7 +264,7 @@ class Kubernetes:
                             'lower': 1,
                             'upper': 15,
                             'step': 1,
-                            'continuous': 'true'
+                            'continuous': True
                             }
                         },
                         {
@@ -268,7 +273,7 @@ class Kubernetes:
                             'lower': 256,
                             'upper': 1024,
                             'step': 16,
-                            'continuous': 'false'
+                            'continuous': False
                             }
                         },
                         {
@@ -276,7 +281,7 @@ class Kubernetes:
                         'number': {
                             'lower': 0,
                             'upper': 1,
-                            'continuous': 'true'
+                            'continuous': True
                             },
                         },
                         {
@@ -305,7 +310,7 @@ class ConfigMap:
     def dump(self, out=sys.stdout):
         dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
-    def create(self, uappName, svc_prefix, msgsize, load, msgtime, mem, sampling, x, y, nodename=''):
+    def create(self, uappName, svc_prefix, msgsize, msgtime, x, y, sampling, nodename=''):
         yamlFiles = []
         adjacency = g.adjacency()
         name_prefix = svc_prefix
@@ -315,27 +320,26 @@ class ConfigMap:
             childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
             name = name_prefix+str(key)
 
-            yamlFiles.append(self.config_map(name, msgsize, load, msgtime, mem, sampling, x, y))
+            yamlFiles.append(self.config_map(name, uappName, msgsize, msgtime, x, y, sampling))
             
         self.scheme = yamlFiles
         return yamlFiles
 
-    def config_map(self, name, msgsize, load, msgtime, mem, sampling, x, y):
+    def config_map(self, name, namespace, msgsize, msgtime, x, y, sampling):
         config_map_name = name + '-configmap'
         return {
             'apiVersion': 'v1',
             'kind': 'ConfigMap',
             'metadata': {
                 'name': config_map_name,
-                'namespace': 'default'
+                'namespace': namespace
             },
             'data': {
-                'name': name,
-                'mem': mem,
-                'msg-time': msgtime,
-                'msg-size': msgsize,
-                'x': x,
-                'y': y
+                'NAME': name,
+                'MSG_TIME': msgtime,
+                'MSG_SIZE': msgsize,
+                'X_VALUE': x,
+                'Y_VALUE': y
             }
         }
 
@@ -343,16 +347,16 @@ if __name__=="__main__":
     g = Graph(10)
 
     dc = DockerCompose(g)
-    dc.create('svc_', 'zipkin:9411', '100', '0.35', '100', '0')
+    dc.create('svc_', 'zipkin:9411', '100', '100', '2', '3')
     compose = open('DockerCompose.yaml','w') # will overwrite file with same name
     dc.dump(out=compose)
 
     k = Kubernetes(g)
-    k.create('uapp', 'svc-', '100', '0.35','100','0',True)
+    k.create('uapp', 'svc-', '100', '100','2', '3', True)
     kubernetes = open('K8s.yaml', 'w')
     k.dump(out=kubernetes)
 
     c = ConfigMap(g)
-    c.create('uapp', 'svc-', '100', '0.35', '100', '0', True, '2', '3')
-    configmap = open("configMap.yaml", 'w')
+    c.create('uapp', 'svc-', '100', '100', '2', '3', True)
+    configmap = open("ConfigMap.yaml", 'w')
     c.dump(out=configmap)
