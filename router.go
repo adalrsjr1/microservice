@@ -39,10 +39,6 @@ var globalName = ""
 var tracer *zipkin.Tracer
 var bufferReader *Queue
 
-//create global timer
-//start a timer since we need to now how many requests we are handling per second
-var startTime = time.Now()
-
 func main() {
 	writePid()
 	var (

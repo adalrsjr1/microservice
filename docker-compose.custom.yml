@@ -9,7 +9,7 @@ services:
     depends_on:
       - back-end-1
       - back-end-2
-    command: --name=front-end --x=4.9 --y=4.9 --msg-size=128 --msg-time=10000 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
+    command: --name=front-end --x=4.9 --y=4.9 --msg-size=128 --msg-time=1 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
     #command: --name=front-end --msg-size=128 --msg-time=10 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
 
   back-end-1:
@@ -18,7 +18,7 @@ services:
     depends_on:
       - back-end-3
       - back-end-4
-    command: --name=back-end-1 --x=4.9 --y=4.9 --msg-size=256 --msg-time=10000 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
+    command: --name=back-end-1 --x=4.9 --y=4.9 --msg-size=256 --msg-time=1 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
     #command: --name=back-end-1 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
 
   back-end-2:
