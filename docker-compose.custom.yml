@@ -1,50 +1,146 @@
 version: '3'
 
+# services:
+#   shop:
+#     image: adalrsjr1/microservice
+#     container_name: front-end
+#     ports:
+#       - 8080:8080
+#     depends_on:
+#       - back-end-1
+#       - back-end-2
+#     command: --name=front-end --msg-size=128 --msg-time=10 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
+
+#   back-end-1:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-1
+#     depends_on:
+#       - back-end-3
+#       - back-end-4
+#     command: --name=back-end-1 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
+
+#   back-end-2:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-2
+#     depends_on:
+#       - back-end-5
+#     command: --name=back-end-2 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-5
+
+#   back-end-3:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-3
+#     depends_on:
+#       - back-end-6
+#     command: --name=back-end-3 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-6
+
+#   back-end-4:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-4
+#     depends_on:
+#       - back-end-7
+#       - back-end-8
+#     command: --name=back-end-4 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-7 back-end-8
+
+#   back-end-5:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-5
+#     depends_on:
+#       - back-end-4
+#       - back-end-9
+#     command: --name=back-end-5 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-4 back-end-9
+
+#   back-end-6:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-6
+#     depends_on:
+#       - back-end-7
+#     command: --name=back-end-6 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-7
+
+#   back-end-7:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-7
+#     command: --name=back-end-7 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 
+
+#   back-end-8:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-8
+#     command: --name=back-end-8 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 
+
+#   back-end-9:
+#     image: adalrsjr1/microservice
+#     container_name: back-end-9
+#     command: --name=back-end-9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 
+
 services:
-  shop:
+  svc_0:
+    command: --name=svc_0 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 svc_2
+    container_name: svc_0
+    depends_on:
+    - svc_2
     image: adalrsjr1/microservice
-    container_name: front-end
     ports:
-      - 8080:8080
+    - 8080:8080
+  svc_1:
+    command: --name=svc_1 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 svc_4 svc_6
+    container_name: svc_1
     depends_on:
-      - back-end-1
-      - back-end-2
-    command: --name=front-end --x=4.9 --y=4.9 --msg-size=128 --msg-time=10000 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
-    #command: --name=front-end --msg-size=128 --msg-time=10 --load=0.33 --mem=1 --zipkin=zipkin:9411 back-end-1 back-end-2
-
-  back-end-1:
+    - svc_4
+    - svc_6
     image: adalrsjr1/microservice
-    container_name: back-end-1
+  svc_2:
+    command: --name=svc_2 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 svc_1
+    container_name: svc_2
     depends_on:
-      - back-end-3
-      - back-end-4
-    command: --name=back-end-1 --x=4.9 --y=4.9 --msg-size=256 --msg-time=10000 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
-    #command: --name=back-end-1 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-3 back-end-4
-
-  back-end-2:
+    - svc_1
     image: adalrsjr1/microservice
-    container_name: back-end-2
+  svc_3:
+    command: --name=svc_3 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 svc_8 svc_9
+    container_name: svc_3
     depends_on:
-      - back-end-5
-    command: --name=back-end-2 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-5
-    #command: --name=back-end-2 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411 back-end-5
-
-  back-end-3:
+    - svc_8
+    - svc_9
     image: adalrsjr1/microservice
-    container_name: back-end-3
-    command: --name=back-end-3 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
-    #command: --name=back-end-3 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
-
-  back-end-4:
+  svc_4:
+    command: --name=svc_4 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 svc_3 svc_5
+    container_name: svc_4
+    depends_on:
+    - svc_3
+    - svc_5
     image: adalrsjr1/microservice
-    container_name: back-end-4
-    command: --name=back-end-4 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
-    #command: --name=back-end-4 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
-
-  back-end-5:
+  svc_5:
+    command: '--name=svc_5 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 '
+    container_name: svc_5
+    depends_on: []
     image: adalrsjr1/microservice
-    container_name: back-end-5
-    command: --name=back-end-5 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
-    #command: --name=back-end-5 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
-
+  svc_6:
+    command: '--name=svc_6 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 '
+    container_name: svc_6
+    depends_on: []
+    image: adalrsjr1/microservice
+  svc_7:
+    command: '--name=svc_7 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 '
+    container_name: svc_7
+    depends_on: []
+    image: adalrsjr1/microservice
+  svc_8:
+    command: --name=svc_8 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 svc_7
+    container_name: svc_8
+    depends_on:
+    - svc_7
+    image: adalrsjr1/microservice
+  svc_9:
+    command: '--name=svc_9 --zipkin=zipkin:9411 --msg-size=100 --msg-time=100 --load=0.35
+      --mem=0 '
+    container_name: svc_9
+    depends_on: []
+    image: adalrsjr1/microservice
 

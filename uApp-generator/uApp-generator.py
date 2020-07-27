@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from networkx.drawing.nx_agraph import graphviz_layout
 from collections import OrderedDict
 import pprint
+import json
 
 
 class Graph:
@@ -60,6 +61,25 @@ class Graph:
         nx.draw_networkx_labels(self.g, pos, labels)
         plt.savefig('graph.pdf')
 
+    # def getPaths(self, start, path=[]):
+    #     path = path + [start]
+    #     paths = [path]
+    #     if len(self.g[start]) == 0:  # No neighbors
+    #         print(path)
+    #     for node in self.g[start]:
+    #         newpaths = self.getPaths(node, path)
+    #         for newpath in newpaths:
+    #             paths.append(newpath)
+    #     return paths
+    
+    def getPaths(self):
+        paths = []
+        leafNodes = [node for node in self.g.nodes() if self.g.out_degree(node)==0]
+        for leafNode in leafNodes:
+            newPaths = nx.all_simple_paths(self.g, 0, leafNode)
+            for newPath in newPaths:
+                paths.append(newPath)
+        return paths
 
 class DockerCompose:
     def __init__(self, graph):
@@ -239,6 +259,25 @@ class Kubernetes:
             }
         }
 
+def pathsToMap(paths):
+
+    # Convert node numbers to service name, add empty string to indicate that it is the end of a path
+    for path in paths:
+        for i in range(len(path)):
+            path[i] = "svc_" + str(path[i])
+        path.append("")
+
+
+    # Construct routeMap
+    routeMap = {}
+    for idx, path in enumerate(paths):
+        route = {}
+        for i in range(len(path)-1):
+            route[path[i]] = path[i+1]
+
+        routeMap[str(idx)] = route
+    return routeMap
+
 
 
 if __name__=="__main__":
@@ -247,12 +286,23 @@ if __name__=="__main__":
     dc.create('svc_', 'zipkin:9411', '100', '0.35', '100', '0')
     compose = open('test.yaml','w')
     dc.dump(out=compose)
-    #g.save()
+    g.save()
 
-    k = Kubernetes(g)
-    k.create('uapp', 'svc-', '100', '0.35','100','0',True)
-    kubernetes = open('k8s.yaml', 'w')
-    k.dump(out=kubernetes)
+    #Turns paths into map
+    paths = g.getPaths()
+    routeMap = pathsToMap(paths)
+
+    # Write this routemap to a variable in a go file
+    with open('../routeMap.go', 'w') as outfile:
+        outfile.write("package main\nvar generatedRouteMap = map[string]map[string]string")
+        json.dump(routeMap, outfile)
+
+
+
+    # k = Kubernetes(g)
+    # k.create('uapp', 'svc-', '100', '0.35','100','0',True)
+    # kubernetes = open('k8s.yaml', 'w')
+    # k.dump(out=kubernetes)
 
     #yaml = YAML()
     #yaml.dump(svc, sys.stdout)
