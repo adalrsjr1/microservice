@@ -60,17 +60,6 @@ class Graph:
         nx.draw(self.g,pos, arrows=True)
         nx.draw_networkx_labels(self.g, pos, labels)
         plt.savefig('graph.pdf')
-
-    # def getPaths(self, start, path=[]):
-    #     path = path + [start]
-    #     paths = [path]
-    #     if len(self.g[start]) == 0:  # No neighbors
-    #         print(path)
-    #     for node in self.g[start]:
-    #         newpaths = self.getPaths(node, path)
-    #         for newpath in newpaths:
-    #             paths.append(newpath)
-    #     return paths
     
     def getPaths(self):
         paths = []
