@@ -117,6 +117,10 @@ func main() {
 		r.Methods("POST").Path("/").HandlerFunc(AllTargets(client, addrs[:], msgSize, msgTime, load, microservice, x, y))
 		r.Methods("POST").Path("/random").HandlerFunc(RandomTarget(client, addrs[:], msgSize, msgTime, load, microservice, x, y))
 
+		r.Methods("POST").Path("/0").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "0"))
+		r.Methods("POST").Path("/1").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "1"))
+		r.Methods("POST").Path("/2").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "2"))
+		r.Methods("POST").Path("/3").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "3"))
 		//If this microservice has no dependencies
 	} else {
 
@@ -125,6 +129,10 @@ func main() {
 		r.Methods("POST").Path("/").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, load, microservice, x, y))
 		r.Methods("POST").Path("/random").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, load, microservice, x, y))
 
+		r.Methods("POST").Path("/0").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "0"))
+		r.Methods("POST").Path("/1").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "1"))
+		r.Methods("POST").Path("/2").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "2"))
+		r.Methods("POST").Path("/3").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "3"))
 	}
 
 	r.Use(zipkinhttp.NewServerMiddleware(
@@ -139,6 +147,85 @@ func writePid() {
 	pid := os.Getpid()
 	bpid := []byte(strconv.Itoa(pid))
 	ioutil.WriteFile("/tmp/go.pid", bpid, 0644)
+}
+
+func getNextTarget(currentNode string, requestType string) string {
+
+	nextNode := generatedRouteMap[requestType][currentNode]
+
+	return nextNode
+}
+
+func handleRequest(name string, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64, x float64, y float64, requestType string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("ok")
+		traverseTargets(name, w, r, client, targets[:], requestSize, calculationTime, load, x, y, requestType)
+	}
+}
+
+// Traverse the path defined for that requestType in the generatedRouteMap
+func traverseTargets(name string, w http.ResponseWriter, r *http.Request,
+	client *zipkinhttp.Client, targets []string, requestSize uint,
+	calculationTime uint, load float64, x float64, y float64, requestType string) {
+
+	span, ctx := tracer.StartSpanFromContext(r.Context(), "size")
+
+	if span == nil {
+		log.Printf("span is nil")
+	}
+
+	span.Tag("termination_node", "false")
+
+	FinityCpuUsage(calculationTime, x, y)
+	span.Annotate(time.Now(), "expensive_calc_done")
+
+	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
+
+	target := getNextTarget(name, requestType)
+
+	if target != "" {
+		log.Printf("-->" + target)
+		newRequest, err := http.NewRequest("POST", "http://"+target+":8080/"+requestType, bytes.NewBuffer(byteMessage))
+		span.Tag("source", globalName)
+		span.Tag("target", target)
+		span.Tag("req-size", strconv.Itoa(binary.Size(byteMessage)))
+
+		if err != nil {
+			log.Printf("unable to create client: %+v\n", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer span.Finish()
+
+		byteMessage = nil
+
+		ctx = zipkin.NewContext(newRequest.Context(), span)
+		newRequest = newRequest.WithContext(ctx)
+
+		res, err := client.DoWithAppSpan(newRequest, "random "+target)
+		if err != nil {
+			log.Printf("call to %s returned error: %+v\n", target, err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		bodyBytes, _ := ioutil.ReadAll(res.Body)
+		span.Tag("res-size", strconv.Itoa(binary.Size(bodyBytes)))
+		res.Body.Close()
+		w.Write(bodyBytes)
+	} else {
+		log.Printf("termination")
+
+		byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
+		w.Header().Set("Content-Type", "octect-stream")
+		w.Write(byteMessage)
+
+		span, _ := tracer.StartSpanFromContext(r.Context(), "size")
+		span.Tag("termination_node", "true")
+		timeElapsed := FinityCpuUsage(calculationTime, x, y)
+		span.Tag("elapsed_time_ms", strconv.FormatInt(int64(timeElapsed/time.Millisecond), 10))
+
+		span.Finish()
+	}
 }
 
 func AllTargets(client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64, serv *Service, x float64, y float64) http.HandlerFunc {

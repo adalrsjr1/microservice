@@ -47,4 +47,3 @@ services:
     command: --name=back-end-5 --x=4.9 --y=4.9 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
     #command: --name=back-end-5 --msg-size=256 --msg-time=30 --load=0.60 --mem=1 --zipkin=zipkin:9411
 
-

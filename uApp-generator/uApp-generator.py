@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from networkx.drawing.nx_agraph import graphviz_layout
 from collections import OrderedDict
 import pprint
+import json
 
 
 class Graph:
@@ -59,6 +60,15 @@ class Graph:
         nx.draw(self.g,pos, arrows=True)
         nx.draw_networkx_labels(self.g, pos, labels)
         plt.savefig('graph.pdf')
+    
+    def getPaths(self):
+        paths = []
+        leafNodes = [node for node in self.g.nodes() if self.g.out_degree(node)==0]
+        for leafNode in leafNodes:
+            newPaths = nx.all_simple_paths(self.g, 0, leafNode)
+            for newPath in newPaths:
+                paths.append(newPath)
+        return paths
 
 class DockerCompose:
     def __init__(self, graph):
@@ -343,6 +353,23 @@ class ConfigMap:
             }
         }
 
+def pathsToMap(paths):
+    # Convert node numbers to service name, add empty string to indicate that it is the end of a path
+    for path in paths:
+        for i in range(len(path)):
+            path[i] = "svc_" + str(path[i])
+        path.append("")
+        
+    # Construct routeMap
+    routeMap = {}
+    for idx, path in enumerate(paths):
+        route = {}
+        for i in range(len(path)-1):
+            route[path[i]] = path[i+1]
+
+        routeMap[str(idx)] = route
+    return routeMap
+
 if __name__=="__main__":
     g = Graph(10)
 
@@ -360,3 +387,11 @@ if __name__=="__main__":
     c.create('uapp', 'svc-', '100', '100', '2', '3', True)
     configmap = open("ConfigMap.yaml", 'w')
     c.dump(out=configmap)
+
+    #Turns paths into map
+    paths = g.getPaths()
+    routeMap = pathsToMap(paths)
+    # Write this routemap to a variable in a go file
+    with open('../routeMap.go', 'w') as outfile:
+        outfile.write("package main\nvar generatedRouteMap = map[string]map[string]string")
+        json.dump(routeMap, outfile)
