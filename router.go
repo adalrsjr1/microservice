@@ -44,23 +44,35 @@ func main() {
 	var (
 		name       string
 		msgSize    uint
-		load       float64
 		msgTime    uint
-		memUsage   uint
 		zipkinAddr string
 		isSampling bool
-		x          float64
-		y          float64
+		x          int
+		y          int
+		a          float64
+		b          float64
+		c          float64
+		d          float64
+		e          float64
+		f          float64
+		g          float64
+		h          float64
 	)
 	flag.StringVar(&zipkinAddr, "zipkin", "0.0.0.0:9411", "zipkin addr:port default 0.0.0.0:9411")
 	flag.StringVar(&name, "name", "", "service name")
 	flag.UintVar(&msgSize, "msg-size", 256, "average size in bytes default:256")
-	flag.Float64Var(&load, "load", 0.1, "CPU load per message default:10% (0.1)")
 	flag.UintVar(&msgTime, "msg-time", 10, "Time do compute an msg-request default 10ms")
-	flag.UintVar(&memUsage, "mem", 128, "min memory usage default:128MB")
 	flag.BoolVar(&isSampling, "sampling", true, "sampling messages to store into zipkin")
-	flag.Float64Var(&x, "x", 0, "x value")
-	flag.Float64Var(&y, "y", 0, "y value")
+	flag.IntVar(&x, "x", 0, "parameter X")
+	flag.IntVar(&y, "y", 0, "parameter Y")
+	flag.Float64Var(&a, "a", 0, "parameter A")
+	flag.Float64Var(&b, "b", 0, "parameter B")
+	flag.Float64Var(&c, "c", 0, "parameter C")
+	flag.Float64Var(&d, "d", 0, "parameter D")
+	flag.Float64Var(&e, "e", 0, "parameter E")
+	flag.Float64Var(&f, "f", 0, "parameter F")
+	flag.Float64Var(&g, "g", 0, "parameter G")
+	flag.Float64Var(&h, "h", 0, "parameter H")
 	flag.Parse()
 	addrs := flag.Args()
 
@@ -102,11 +114,12 @@ func main() {
 	microservice.ProcessTime = int(msgTime)
 
 	//calculate the number of requests per second that are handled on average based on the CPU load and processing time
+	load := getCpuUsage(x, y, a, b, c, d, e, f, g, h)
 	microservice.RequestsPerSecond = int((load * 100.0) / float64((float64(microservice.ProcessTime) / 1000.0)))
 
 	bufferReader = NewQueue(microservice.RequestsPerSecond)
 
-	SetMemUsage(x, y)
+	SetMemUsage(x, y, a, b, c, d, e, f, g, h)
 
 	r := mux.NewRouter()
 
@@ -114,25 +127,25 @@ func main() {
 	if len(addrs) != 0 {
 		log.Printf("setting non-terminal handlers in %s", name)
 
-		r.Methods("POST").Path("/").HandlerFunc(AllTargets(client, addrs[:], msgSize, msgTime, load, microservice, x, y))
-		r.Methods("POST").Path("/random").HandlerFunc(RandomTarget(client, addrs[:], msgSize, msgTime, load, microservice, x, y))
+		r.Methods("POST").Path("/").HandlerFunc(AllTargets(client, addrs[:], msgSize, msgTime, microservice, x, y, a, b, c, d, e, f, g, h))
+		r.Methods("POST").Path("/random").HandlerFunc(RandomTarget(client, addrs[:], msgSize, msgTime, microservice, x, y, a, b, c, d, e, f, g, h))
 
-		r.Methods("POST").Path("/0").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "0"))
-		r.Methods("POST").Path("/1").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "1"))
-		r.Methods("POST").Path("/2").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "2"))
-		r.Methods("POST").Path("/3").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "3"))
+		r.Methods("POST").Path("/0").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "0", a, b, c, d, e, f, g, h))
+		r.Methods("POST").Path("/1").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "1", a, b, c, d, e, f, g, h))
+		r.Methods("POST").Path("/2").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "2", a, b, c, d, e, f, g, h))
+		r.Methods("POST").Path("/3").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "3", a, b, c, d, e, f, g, h))
 		//If this microservice has no dependencies
 	} else {
 
 		log.Printf("setting terminal handlers in %s", name)
 
-		r.Methods("POST").Path("/").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, load, microservice, x, y))
-		r.Methods("POST").Path("/random").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, load, microservice, x, y))
+		r.Methods("POST").Path("/").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, microservice, x, y, a, b, c, d, e, f, g, h))
+		r.Methods("POST").Path("/random").HandlerFunc(TerminationRequest(client, name, addrs[:], msgSize, msgTime, microservice, x, y, a, b, c, d, e, f, g, h))
 
-		r.Methods("POST").Path("/0").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "0"))
-		r.Methods("POST").Path("/1").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "1"))
-		r.Methods("POST").Path("/2").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "2"))
-		r.Methods("POST").Path("/3").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "3"))
+		r.Methods("POST").Path("/0").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "0", a, b, c, d, e, f, g, h))
+		r.Methods("POST").Path("/1").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "1", a, b, c, d, e, f, g, h))
+		r.Methods("POST").Path("/2").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "2", a, b, c, d, e, f, g, h))
+		r.Methods("POST").Path("/3").HandlerFunc(handleRequest(name, client, addrs[:], msgSize, msgTime, load, x, y, "3", a, b, c, d, e, f, g, h))
 	}
 
 	r.Use(zipkinhttp.NewServerMiddleware(
@@ -156,17 +169,19 @@ func getNextTarget(currentNode string, requestType string) string {
 	return nextNode
 }
 
-func handleRequest(name string, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64, x float64, y float64, requestType string) http.HandlerFunc {
+func handleRequest(name string, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64, x int, y int, requestType string,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ok")
-		traverseTargets(name, w, r, client, targets[:], requestSize, calculationTime, load, x, y, requestType)
+		traverseTargets(name, w, r, client, targets[:], requestSize, calculationTime, load, x, y, requestType, a, b, c, d, e, f, g, h)
 	}
 }
 
 // Traverse the path defined for that requestType in the generatedRouteMap
 func traverseTargets(name string, w http.ResponseWriter, r *http.Request,
 	client *zipkinhttp.Client, targets []string, requestSize uint,
-	calculationTime uint, load float64, x float64, y float64, requestType string) {
+	calculationTime uint, load float64, x int, y int, requestType string,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) {
 
 	span, ctx := tracer.StartSpanFromContext(r.Context(), "size")
 
@@ -176,7 +191,7 @@ func traverseTargets(name string, w http.ResponseWriter, r *http.Request,
 
 	span.Tag("termination_node", "false")
 
-	FinityCpuUsage(calculationTime, x, y)
+	FinityCpuUsage(calculationTime, x, y, a, b, c, d, e, f, g, h)
 	span.Annotate(time.Now(), "expensive_calc_done")
 
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
@@ -221,23 +236,25 @@ func traverseTargets(name string, w http.ResponseWriter, r *http.Request,
 
 		span, _ := tracer.StartSpanFromContext(r.Context(), "size")
 		span.Tag("termination_node", "true")
-		timeElapsed := FinityCpuUsage(calculationTime, x, y)
+		timeElapsed := FinityCpuUsage(calculationTime, x, y, a, b, c, d, e, f, g, h)
 		span.Tag("elapsed_time_ms", strconv.FormatInt(int64(timeElapsed/time.Millisecond), 10))
 
 		span.Finish()
 	}
 }
 
-func AllTargets(client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64, serv *Service, x float64, y float64) http.HandlerFunc {
+func AllTargets(client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, serv *Service, x int, y int,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ok")
-		CallAllTargets(w, r, client, targets[:], requestSize, calculationTime, load, serv, x, y)
+		CallAllTargets(w, r, client, targets[:], requestSize, calculationTime, serv, x, y, a, b, c, d, e, f, g, h)
 	}
 }
 
-func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64, serv *Service, x float64, y float64) {
+func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, serv *Service, x int, y int,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) {
 
-	FinityCpuUsage(calculationTime, x, y)
+	FinityCpuUsage(calculationTime, x, y, a, b, c, d, e, f, g, h)
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
 
 	var bodyBytes []byte
@@ -260,7 +277,7 @@ func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.C
 
 	for _, target := range targets {
 		log.Printf("Sending Request to target: %s", target)
-		go sendRequest(w, r, client, target, requestSize, calculationTime, load, bodyBytes, byteMessage)
+		go sendRequest(w, r, client, target, requestSize, calculationTime, bodyBytes, byteMessage, a, b, c, d, e, f, g, h)
 
 	}
 
@@ -274,7 +291,8 @@ func integerNormalDistribution(mean uint, dev uint) uint {
 	return uint(math.Round(rand.NormFloat64()*float64(dev))) + mean
 }
 
-func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, target string, requestSize uint, calculationTime uint, load float64, bodyBytes []byte, byteMessage []byte) {
+func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, target string, requestSize uint, calculationTime uint, bodyBytes []byte, byteMessage []byte,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) {
 
 	//span := tracer.StartSpan("size")
 	span, _ := tracer.StartSpanFromContext(r.Context(), "size") //zipkin.SpanFromContext(r.Context())
@@ -312,16 +330,18 @@ func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Clie
 //  return rand.NormFloat64() * dev + mean
 //}
 
-func RandomTarget(client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, load float64, serv *Service, x float64, y float64) http.HandlerFunc {
+func RandomTarget(client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, serv *Service, x int, y int,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		CallRandomTarget(w, r, client, targets[:], requestSize, calculationTime, load, serv, x, y)
+		CallRandomTarget(w, r, client, targets[:], requestSize, calculationTime, serv, x, y, a, b, c, d, e, f, g, h)
 	}
 }
 
 func CallRandomTarget(w http.ResponseWriter, r *http.Request,
 	client *zipkinhttp.Client, targets []string, requestSize uint,
-	calculationTime uint, load float64, serv *Service, x float64, y float64) {
+	calculationTime uint, serv *Service, x int, y int,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) {
 
 	req := new(Request)
 
@@ -348,7 +368,7 @@ func CallRandomTarget(w http.ResponseWriter, r *http.Request,
 
 	span.Tag("termination_node", "false")
 
-	FinityCpuUsage(calculationTime, x, y)
+	FinityCpuUsage(calculationTime, x, y, a, b, c, d, e, f, g, h)
 	span.Annotate(time.Now(), "expensive_calc_done")
 
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
@@ -402,7 +422,8 @@ func randomSelection(targets []string) string {
 	return selected
 }
 
-func TerminationRequest(client *zipkinhttp.Client, name string, targets []string, requestSize uint, calculationTime uint, load float64, serv *Service, x float64, y float64) http.HandlerFunc {
+func TerminationRequest(client *zipkinhttp.Client, name string, targets []string, requestSize uint, calculationTime uint, serv *Service, x int, y int,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("into %s", name)
@@ -416,6 +437,7 @@ func TerminationRequest(client *zipkinhttp.Client, name string, targets []string
 
 			//Set 'Value' as the location that sent the request
 			req.Value = r.RemoteAddr
+			load := getCpuUsage(x, y, a, b, c, d, e, f, g, h)
 
 			log.Printf("Currently in: %s", globalName)
 			log.Printf("The load: %f", load)
@@ -442,7 +464,7 @@ func TerminationRequest(client *zipkinhttp.Client, name string, targets []string
 			//span.Tag("target", "terminal")
 			//span.Tag("req-size", strconv.Itoa(binary.Size(byteMessage)))
 
-			timeElapsed := FinityCpuUsage(calculationTime, x, y)
+			timeElapsed := FinityCpuUsage(calculationTime, x, y, a, b, c, d, e, f, g, h)
 			span.Tag("elapsed_time_ms", strconv.FormatInt(int64(timeElapsed/time.Millisecond), 10))
 			// the timeElapsed above must be Time
 			// span.Annotate(timeElapsed, "time elapsed")

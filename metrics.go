@@ -11,11 +11,12 @@ var (
 	epsilon = 32
 )
 
-func SetMemUsage(x float64, y float64) *[][]int8 {
+func SetMemUsage(x int, y int, a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) *[][]int8 {
 	var overall [][]int8
 	var i uint
-	b := himmelblau(x, y)
-	for ; i < b; i++ {
+
+	mem := getMemoryUsage(x, y, a, b, c, d, e, f, g, h)
+	for ; i < mem; i++ {
 		a := make([]int8, 0, 1048576*epsilon)
 		overall = append(overall, a)
 		memUsage()
@@ -23,6 +24,22 @@ func SetMemUsage(x float64, y float64) *[][]int8 {
 	}
 	memUsage()
 	return &overall
+}
+
+func getMemoryUsage(x int, y int, a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) uint {
+	var x_param float64
+	var y_param float64
+	if x%2 == 0 {
+		x_param = func_x_1(a, b, c, d)
+	} else {
+		x_param = func_x_2(d, e, h)
+	}
+	if y%2 == 0 {
+		y_param = func_y_1(a, c, e, f, g)
+	} else {
+		y_param = func_y_2(b, e, f)
+	}
+	return himmelblau(x_param, y_param)
 }
 
 func FreeMemUsed(overall *[][]int8) {
@@ -48,15 +65,31 @@ func bToMb(b uint64) uint64 {
 }
 
 // https://caffinc.github.io/2016/03/cpu-load-generator/
-func InfinityCpuUsage(x float64, y float64) {
-	FinityCpuUsage(0, x, y)
+func InfinityCpuUsage(x int, y int, a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) {
+	FinityCpuUsage(0, x, y, a, b, c, d, e, f, g, h)
+}
+
+func getCpuUsage(x int, y int, a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) float64 {
+	var x_param float64
+	var y_param float64
+	if x%2 == 0 {
+		x_param = func_x_1(a, b, c, d)
+	} else {
+		x_param = func_x_2(d, e, h)
+	}
+	if y%2 == 0 {
+		y_param = func_y_1(a, c, e, f, g)
+	} else {
+		y_param = func_y_2(b, e, f)
+	}
+	return beale(x_param, y_param) * 100
 }
 
 // set CPU usage in $load% for $timeElapsed ms
-func FinityCpuUsage(timeElapsed uint, x float64, y float64) time.Duration {
+func FinityCpuUsage(timeElapsed uint, x int, y int, a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) time.Duration {
 	start := time.Now()
-	// beale() will generate a value between 0.2 and 0.4
-	sleepTime := beale(x, y) * 100
+	sleepTime := getCpuUsage(x, y, a, b, c, d, e, f, g, h)
+
 	var elapsed time.Duration
 	for {
 		unladenTime := time.Now().UnixNano() / int64(time.Millisecond)
@@ -104,4 +137,30 @@ func himmelblau(x float64, y float64) uint {
 	// this can be changed; let's use 1024 as our maximum and 0 as our minimum
 	val := uint(float64(1024) * pct) // note that we're changing it to a uint32 => nearest integer val
 	return val
+}
+
+func func_x_1(a float64, b float64, c float64, d float64) float64 {
+	// Our function won't work if log(d) = 0 because of a divide-by-zero, so just return the maximal value 5
+	if math.Log(d) == 0 {
+		return 5
+	}
+	// (a^2 + bc) / (500*log(d))
+	return (math.Pow(a, 2) + (b * c)) / (500 * math.Log(d))
+}
+
+func func_y_1(a float64, c float64, e float64, f float64, g float64) float64 {
+	// sin(a*c*pi) * cos(f^g*pi) - 2*e
+	return (math.Sin((a/c)*math.Pi)*math.Cos((math.Pow(f, g))*math.Pi) - 2*e)
+}
+
+func func_x_2(d float64, e float64, h float64) float64 {
+	return (math.Log(d) - (e * h / 32))
+}
+
+func func_y_2(b float64, e float64, f float64) float64 {
+	if b*e < 0 {
+		// Just to make sure that we end up with a positive value to sqrt
+		e = -e
+	}
+	return math.Sqrt(b*e) / f
 }
