@@ -6,6 +6,7 @@ from networkx.drawing.nx_agraph import graphviz_layout
 from collections import OrderedDict
 import pprint
 import json
+import os
 
 
 class Graph:
@@ -126,7 +127,7 @@ class Kubernetes:
     def dump(self, out=sys.stdout):
         dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
-    def create(self, uappName, svc_prefix, msgsize, msgtime, x, y, sampling, nodename=''):
+    def create(self, kobject, uappName, svc_prefix, msgsize, msgtime, x, y, sampling, nodename=''):
         yamlFiles = [self.namespace(uappName)]
 
         adjacency = g.adjacency()
@@ -145,9 +146,12 @@ class Kubernetes:
             args['childs'] = childs
 
             root=not bool(key)
-
+            
+        if kobject == 'service':
             yamlFiles.append(self.service(name, uappName, root=root))
+        elif kobject == 'deployment':
             yamlFiles.append(self.deployment(name, uappName, args, sampling=sampling, nodename=nodename))
+        elif kobject == 'searchspace':
             yamlFiles.append(self.searchspace(name, uappName))
 
         self.scheme = yamlFiles
@@ -371,21 +375,32 @@ def pathsToMap(paths):
     return routeMap
 
 if __name__=="__main__":
-    g = Graph(10)
+    numOfApps = 10
+    appName = 'svc'
+
+    g = Graph(numOfApps)
+
+    # Creates the directory to dump all manifests
+    os.mkdir(os.getcwd()+'/generated')
+
+    # Creates all K8 related manifest files
+    objects = ['service', 'deployment', 'searchspace']
+    for i in range(1, numOfApps+1):
+        k = Kubernetes(g)
+        for o in objects:
+            k.create(o, 'uapp', appName+'-', '100', '100', '2', '3', True)
+            fileName = appName+'-'+str(i)+'-'+o
+            kubernetes = open('generated/'+fileName+'.yaml', 'w')
+            k.dump(out=kubernetes)
 
     dc = DockerCompose(g)
     dc.create('svc_', 'zipkin:9411', '100', '100', '2', '3')
-    compose = open('DockerCompose.yaml','w') # will overwrite file with same name
+    compose = open('generated/dockercompose.yaml','w') # will overwrite file with same name
     dc.dump(out=compose)
-
-    k = Kubernetes(g)
-    k.create('uapp', 'svc-', '100', '100','2', '3', True)
-    kubernetes = open('K8s.yaml', 'w')
-    k.dump(out=kubernetes)
 
     c = ConfigMap(g)
     c.create('uapp', 'svc-', '100', '100', '2', '3', True)
-    configmap = open("ConfigMap.yaml", 'w')
+    configmap = open("generated/configmap.yaml", 'w')
     c.dump(out=configmap)
 
     #Turns paths into map
