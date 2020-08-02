@@ -21,18 +21,20 @@ make microservice
 
 ```bash
 Usage of ./microservice:
-  -name string
+  --name string
         service name
-  -zipkin string
+  --zipkin string
         zipkin address (addrs:port) -- default 0.0.0.0:9411
-  -msg-size uint
+  --msg-size uint
         average size of all messages outgoing -- default:256
-  -load float64
-        average CPU load per request being processing -- default 10% of CPU
-  -msg-time uint
+  --msg-time uint
         average time to process an incoming message -- default 10ms
-  -mem uint
-        minimum memory used by the microservice -- default 128MB
+  --{a-h} float64
+        parameter {A-H} that affects CPU and memory usage -- default 0
+  --x int
+        parameter X that affects CPU and memory usage -- default 0
+  --y int
+        parameter Y that affects CPU and memory usage -- default 0
 ```
 
 ## Example
@@ -59,4 +61,37 @@ curl -I -XPOST localhost:8080/
 or to exercise few endpoints at random
 ```
 curl -I -XPOST localhost:8080/random
+```
+
+## Deep Dive
+#### Valid parameter values
+All parameters are continuous unless otherwise specified.
+```
+-4 <= a <= 4
+-250 <= b <= 250
+-10 <= c <= 10
+1E-5 <= d <= 1E5 | Step: 10, not continuous
+-2.5 <= e <= 2.5
+5 <= f <= 10, -10 <= f <= -5
+-3 <= g <= 3
+-25 <= h < 25
+-10 <= x, y <= 10 | Step: 1, not continuous
+```
+
+#### Functions used to determine CPU and load
+![Functions](https://quicklatex.com/cache3/51/ql_249ec8fb1972a1d0d2346a148dd01751_l3.png)
+
+#### Raw functions
+If the images ever break, here are the raw functions (as LaTeX):
+```
+Beale: \textrm{CPU} = \frac{(1.5-x+xy)^2 + (2.25-x+xy^2)^2 + (2.625-x+xy^3)^2}{890000} + 0.2
+Himmelblau: \textrm{Memory} =  \frac{(x^2 + y - 11)^2 + (x + y^2 - 7)^2}{890} * 1024
+
+x_{1}: \frac{a^2 + bc}{500*\log{d}} * 1024
+
+x_{2} = \log{d} - \frac{e*h}{32}
+
+y_{1} = \sin{\frac{a}{c} \pi } * cos(f^g \pi) - 2e
+
+y_{2} =  \frac{\sqrt{be}}{f}
 ```
