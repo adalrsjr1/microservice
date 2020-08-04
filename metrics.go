@@ -124,7 +124,7 @@ func beale(x float64, y float64) float64 {
 func himmelblau(x float64, y float64) uint {
 	var pct = 0.0
 	if x >= -5 && x <= 5 && y >= -5 && y <= 5 {
-		// Beale Function
+		// Himmelblau Function
 		pct = math.Pow(math.Pow(x, 2)+y-11, 2) + math.Pow(x+math.Pow(y, 2)-7, 2)
 		// Maximum for this function is approx. 890
 		pct = pct / 890 // make it a value between 0 and 1
@@ -150,7 +150,7 @@ func func_x_1(a float64, b float64, c float64, d float64) float64 {
 
 func func_y_1(a float64, c float64, e float64, f float64, g float64) float64 {
 	// sin(a*c*pi) * cos(f^g*pi) - 2*e
-	return (math.Sin((a/c)*math.Pi)*math.Cos((math.Pow(f, g))*math.Pi) - 2*e)
+	return (math.Sin((a/c)*math.Pi)*math.Cos(f*g*math.Pi) - 2*e)
 }
 
 func func_x_2(d float64, e float64, h float64) float64 {

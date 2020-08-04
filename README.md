@@ -70,28 +70,30 @@ All parameters are continuous unless otherwise specified.
 -4 <= a <= 4
 -250 <= b <= 250
 -10 <= c <= 10
-1E-5 <= d <= 1E5 | Step: 10, not continuous
+1E-5 <= d <= 1E-1 (continuous), 10 <= d <= 1E5 | Step: 10, not continuous
 -2.5 <= e <= 2.5
 5 <= f <= 10, -10 <= f <= -5
 -3 <= g <= 3
 -25 <= h < 25
 -10 <= x, y <= 10 | Step: 1, not continuous
 ```
+All parameters are independent of each other.
 
 #### Functions used to determine CPU and load
-![Functions](https://quicklatex.com/cache3/51/ql_249ec8fb1972a1d0d2346a148dd01751_l3.png)
+![Functions](https://quicklatex.com/cache3/76/ql_be0aa52379850f1f5b576bc689a00e76_l3.png)
 
 #### Raw functions
-If the images ever break, here are the raw functions (as LaTeX):
+If the image ever breaks, here are the raw functions (as LaTeX):
 ```
 Beale: \textrm{CPU} = \frac{(1.5-x+xy)^2 + (2.25-x+xy^2)^2 + (2.625-x+xy^3)^2}{890000} + 0.2
+
 Himmelblau: \textrm{Memory} =  \frac{(x^2 + y - 11)^2 + (x + y^2 - 7)^2}{890} * 1024
 
 x_{1}: \frac{a^2 + bc}{500*\log{d}} * 1024
 
 x_{2} = \log{d} - \frac{e*h}{32}
 
-y_{1} = \sin{\frac{a}{c} \pi } * cos(f^g \pi) - 2e
+y_{1} = \sin{\frac{a}{c} \pi } * cos(f*g \pi) - 2e
 
 y_{2} =  \frac{\sqrt{be}}{f}
 ```
