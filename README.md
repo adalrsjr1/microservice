@@ -63,6 +63,25 @@ or to exercise few endpoints at random
 curl -I -XPOST localhost:8080/random
 ```
 
+
+#### Exercising URL-based predefined paths
+
+After running `uApp-generator.py`, the file `routeMap.go` will be created. This file defines all the uniques paths through the given microservice graph from the start node to a terminal node. 
+In order to exercise one of the paths, use any of the 4 commands below.
+
+```
+curl -I -XPOST localhost:8080/0
+curl -I -XPOST localhost:8080/1
+curl -I -XPOST localhost:8080/2
+curl -I -XPOST localhost:8080/3
+```
+
+If there are more than 4 paths through the graph that you wish to exercise, you can easily add more endpoints (`/4`, `/5`, ...) in `main()` of `router.go` and everything should work accordingly.
+No other changes are nessecary to support more paths.
+
+If there are less than 4 paths through the graph, only use the endpoints less than the number of paths. 
+
+
 ## Deep Dive
 #### Valid parameter values
 All parameters are continuous unless otherwise specified.
