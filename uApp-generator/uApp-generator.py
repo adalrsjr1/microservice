@@ -127,16 +127,15 @@ class Kubernetes:
     def dump(self, out=sys.stdout):
         dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
-    def create(self, kobject, uappName, svc_prefix, msgsize, msgtime, x, y, sampling, nodename=''):
+    def create(self, kobject, uappName, svc_name, svc_num, msgsize, msgtime, x, y, sampling, nodename=''):
         yamlFiles = [self.namespace(uappName)]
 
         adjacency = g.adjacency()
-        name_prefix = svc_prefix
         args = {}
 
         for key, value in adjacency.items():
-            childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
-            name = name_prefix+str(key)
+            childs = [svc_name+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
+            name = svc_name+'-'+str(svc_num)
             args['name'] = name
             args['msgsize'] = msgsize
             args['msgtime'] = msgtime
@@ -324,17 +323,16 @@ class ConfigMap:
     def dump(self, out=sys.stdout):
         dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
-    def create(self, uappName, svc_prefix, msgsize, msgtime, x, y, sampling, nodename=''):
+    def create(self, uappName, svc_name, svc_num, msgsize, msgtime, x, y, sampling, nodename=''):
         yamlFiles = []
         adjacency = g.adjacency()
-        name_prefix = svc_prefix
         args = {}
 
         for key, value in adjacency.items():
-            childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
-            name = name_prefix+str(key)
+            childs = [svc_name+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
+            name = svc_name+str(key)
 
-            yamlFiles.append(self.config_map(name, uappName, msgsize, msgtime, x, y, sampling))
+        yamlFiles.append(self.config_map(svc_name+'-'+str(svc_num), uappName, msgsize, msgtime, x, y, sampling))
             
         self.scheme = yamlFiles
         return yamlFiles
@@ -381,27 +379,33 @@ if __name__=="__main__":
     g = Graph(numOfApps)
 
     # Creates the directory to dump all manifests
-    os.mkdir(os.getcwd()+'/generated')
-
-    # Creates all K8 related manifest files
-    objects = ['service', 'deployment', 'searchspace']
-    for i in range(1, numOfApps+1):
-        k = Kubernetes(g)
-        for o in objects:
-            k.create(o, 'uapp', appName+'-', '100', '100', '2', '3', True)
-            fileName = appName+'-'+str(i)+'-'+o
-            kubernetes = open('generated/'+fileName+'.yaml', 'w')
-            k.dump(out=kubernetes)
+    try:
+        os.mkdir(os.getcwd()+'/generated')
+    except:
+        pass
+    else:
+        print('manifest target directory generated/ was created')
 
     dc = DockerCompose(g)
     dc.create('svc_', 'zipkin:9411', '100', '100', '2', '3')
     compose = open('generated/dockercompose.yaml','w') # will overwrite file with same name
     dc.dump(out=compose)
 
-    c = ConfigMap(g)
-    c.create('uapp', 'svc-', '100', '100', '2', '3', True)
-    configmap = open("generated/configmap.yaml", 'w')
-    c.dump(out=configmap)
+    # Creates all K8 related manifest files
+    objects = ['service', 'deployment', 'searchspace']
+    for i in range(1, numOfApps+1):
+        k = Kubernetes(g)
+        for o in objects:
+            k.create(o, 'uapp', appName, i, '100', '100', '2', '3', True)
+            fileName = appName+'-'+str(i)+'-'+o
+            kubernetes = open('generated/'+fileName+'.yaml', 'w')
+            k.dump(out=kubernetes)
+        
+        c = ConfigMap(g)
+        c.create('uapp', appName, i, '100', '100', '2', '3', True)
+        fileName = appName+'-'+str(i)+'-configmap'
+        configmap = open('generated/'+fileName+'.yaml', 'w')
+        c.dump(out=configmap)
 
     #Turns paths into map
     paths = g.getPaths()
