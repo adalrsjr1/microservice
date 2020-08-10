@@ -1,11 +1,8 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: uapp
----
-apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   name: svc-0
   namespace: uapp
 spec:
@@ -22,6 +19,8 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   labels:
     app: svc-0
   name: svc-0
@@ -38,17 +37,28 @@ spec:
     spec:
       containers:
       - args:
-        - --name=svc-0
+        - --name=$(NAME)
         - --zipkin=$(ZIPKIN):9411
         - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
+        - --msg-size=$(MSG_SIZE)
+        - --msg-time=$(MSG_TIME)
+        - --x=$(X_VALUE)
+        - --y=$(Y_VALUE)
+        - --a=1.11541438766307
+        - --b=-237.49462238866653
+        - --c=-4.499413632617615
+        - --d=22321.073822650167
+        - --e=1.1823560708200622
+        - --f=7.9524625622451985
+        - --g=-2.809303923109298
+        - --h=-20.315238006920378
         - svc-2.uapp.svc.cluster.local
         env:
         - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
+          value: zipkin.default.svc.cluster.local
+        envFrom:
+        - configMapRef:
+            name: svc-0-configmap
         image: adalrsjr1/microservice:latest
         imagePullPolicy: Always
         name: svc-0
@@ -57,9 +67,47 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
+apiVersion: smarttuning.ibm.com/v1alpha1
+kind: SearchSpace
+metadata:
+  name: svc-0-searchspace
+spec:
+  manifests:
+  - name: acmeair-tuning
+    namespace: uapp
+    params:
+    - name: parameter_A
+      number:
+        continuous: true
+        lower: 1
+        step: 1
+        upper: 15
+    - name: parameter_B
+      number:
+        continuous: false
+        lower: 256
+        step: 16
+        upper: 1024
+    - name: parameter_C
+      number:
+        continuous: true
+        lower: 0
+        upper: 1
+    - name: gc
+      options:
+        type: string
+        values:
+        - -Xgcpolicy:gencon
+        - -Xgc:concurrentScavenge
+        - -Xgcpolicy:metronome
+        - -Xgcpolicy:optavgpause
+        - -Xgcpolicy:optthruput
+---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   name: svc-2
   namespace: uapp
 spec:
@@ -74,6 +122,8 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   labels:
     app: svc-2
   name: svc-2
@@ -90,17 +140,28 @@ spec:
     spec:
       containers:
       - args:
-        - --name=svc-2
+        - --name=$(NAME)
         - --zipkin=$(ZIPKIN):9411
         - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
+        - --msg-size=$(MSG_SIZE)
+        - --msg-time=$(MSG_TIME)
+        - --x=$(X_VALUE)
+        - --y=$(Y_VALUE)
+        - --a=-2.1387128528740833
+        - --b=51.00936452499019
+        - --c=1.2249012587722596
+        - --d=71601.96129508015
+        - --e=1.0066248679511798
+        - --f=-8.897796889796517
+        - --g=0.5355941032554523
+        - --h=15.471522833891335
         - svc-1.uapp.svc.cluster.local
         env:
         - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
+          value: zipkin.default.svc.cluster.local
+        envFrom:
+        - configMapRef:
+            name: svc-2-configmap
         image: adalrsjr1/microservice:latest
         imagePullPolicy: Always
         name: svc-2
@@ -109,9 +170,47 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
+apiVersion: smarttuning.ibm.com/v1alpha1
+kind: SearchSpace
+metadata:
+  name: svc-2-searchspace
+spec:
+  manifests:
+  - name: acmeair-tuning
+    namespace: uapp
+    params:
+    - name: parameter_A
+      number:
+        continuous: true
+        lower: 1
+        step: 1
+        upper: 15
+    - name: parameter_B
+      number:
+        continuous: false
+        lower: 256
+        step: 16
+        upper: 1024
+    - name: parameter_C
+      number:
+        continuous: true
+        lower: 0
+        upper: 1
+    - name: gc
+      options:
+        type: string
+        values:
+        - -Xgcpolicy:gencon
+        - -Xgc:concurrentScavenge
+        - -Xgcpolicy:metronome
+        - -Xgcpolicy:optavgpause
+        - -Xgcpolicy:optthruput
+---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   name: svc-1
   namespace: uapp
 spec:
@@ -126,6 +225,8 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   labels:
     app: svc-1
   name: svc-1
@@ -142,18 +243,28 @@ spec:
     spec:
       containers:
       - args:
-        - --name=svc-1
+        - --name=$(NAME)
         - --zipkin=$(ZIPKIN):9411
         - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
+        - --msg-size=$(MSG_SIZE)
+        - --msg-time=$(MSG_TIME)
+        - --x=$(X_VALUE)
+        - --y=$(Y_VALUE)
+        - --a=-3.948009922575512
+        - --b=152.90962591640397
+        - --c=3.962787899764537
+        - --d=34025.05165839668
+        - --e=-1.7226025009410924
+        - --f=-9.488948617400757
+        - --g=-0.7204361961759758
+        - --h=-7.05103097576858
         - svc-4.uapp.svc.cluster.local
-        - svc-6.uapp.svc.cluster.local
         env:
         - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
+          value: zipkin.default.svc.cluster.local
+        envFrom:
+        - configMapRef:
+            name: svc-1-configmap
         image: adalrsjr1/microservice:latest
         imagePullPolicy: Always
         name: svc-1
@@ -162,9 +273,47 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
+apiVersion: smarttuning.ibm.com/v1alpha1
+kind: SearchSpace
+metadata:
+  name: svc-1-searchspace
+spec:
+  manifests:
+  - name: acmeair-tuning
+    namespace: uapp
+    params:
+    - name: parameter_A
+      number:
+        continuous: true
+        lower: 1
+        step: 1
+        upper: 15
+    - name: parameter_B
+      number:
+        continuous: false
+        lower: 256
+        step: 16
+        upper: 1024
+    - name: parameter_C
+      number:
+        continuous: true
+        lower: 0
+        upper: 1
+    - name: gc
+      options:
+        type: string
+        values:
+        - -Xgcpolicy:gencon
+        - -Xgc:concurrentScavenge
+        - -Xgcpolicy:metronome
+        - -Xgcpolicy:optavgpause
+        - -Xgcpolicy:optthruput
+---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   name: svc-4
   namespace: uapp
 spec:
@@ -179,6 +328,8 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   labels:
     app: svc-4
   name: svc-4
@@ -195,18 +346,28 @@ spec:
     spec:
       containers:
       - args:
-        - --name=svc-4
+        - --name=$(NAME)
         - --zipkin=$(ZIPKIN):9411
         - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
+        - --msg-size=$(MSG_SIZE)
+        - --msg-time=$(MSG_TIME)
+        - --x=$(X_VALUE)
+        - --y=$(Y_VALUE)
+        - --a=-1.2483542201682312
+        - --b=-117.73956638899347
+        - --c=-9.130991141538056
+        - --d=45942.48797259001
+        - --e=-1.8758691857339533
+        - --f=-9.605999009607709
+        - --g=-1.2409303115574426
+        - --h=6.431989974722168
         - svc-3.uapp.svc.cluster.local
-        - svc-5.uapp.svc.cluster.local
         env:
         - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
+          value: zipkin.default.svc.cluster.local
+        envFrom:
+        - configMapRef:
+            name: svc-4-configmap
         image: adalrsjr1/microservice:latest
         imagePullPolicy: Always
         name: svc-4
@@ -215,60 +376,47 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
-apiVersion: v1
-kind: Service
+apiVersion: smarttuning.ibm.com/v1alpha1
+kind: SearchSpace
 metadata:
-  name: svc-6
-  namespace: uapp
+  name: svc-4-searchspace
 spec:
-  ports:
-  - name: http
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: svc-6
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: svc-6
-  name: svc-6
-  namespace: uapp
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: svc-6
-  template:
-    metadata:
-      labels:
-        app: svc-6
-    spec:
-      containers:
-      - args:
-        - --name=svc-6
-        - --zipkin=$(ZIPKIN):9411
-        - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
-        env:
-        - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
-        image: adalrsjr1/microservice:latest
-        imagePullPolicy: Always
-        name: svc-6
-        ports:
-        - containerPort: 8080
-      nodeSelector:
-        beta.kubernetes.io/os: linux
+  manifests:
+  - name: acmeair-tuning
+    namespace: uapp
+    params:
+    - name: parameter_A
+      number:
+        continuous: true
+        lower: 1
+        step: 1
+        upper: 15
+    - name: parameter_B
+      number:
+        continuous: false
+        lower: 256
+        step: 16
+        upper: 1024
+    - name: parameter_C
+      number:
+        continuous: true
+        lower: 0
+        upper: 1
+    - name: gc
+      options:
+        type: string
+        values:
+        - -Xgcpolicy:gencon
+        - -Xgc:concurrentScavenge
+        - -Xgcpolicy:metronome
+        - -Xgcpolicy:optavgpause
+        - -Xgcpolicy:optthruput
 ---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   name: svc-3
   namespace: uapp
 spec:
@@ -283,6 +431,8 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    injection.smarttuning.ibm.com: 'true'
   labels:
     app: svc-3
   name: svc-3
@@ -299,18 +449,27 @@ spec:
     spec:
       containers:
       - args:
-        - --name=svc-3
+        - --name=$(NAME)
         - --zipkin=$(ZIPKIN):9411
         - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
-        - svc-8.uapp.svc.cluster.local
-        - svc-9.uapp.svc.cluster.local
+        - --msg-size=$(MSG_SIZE)
+        - --msg-time=$(MSG_TIME)
+        - --x=$(X_VALUE)
+        - --y=$(Y_VALUE)
+        - --a=3.0836139834944545
+        - --b=-69.18248691651175
+        - --c=-6.154228194866802
+        - --d=6955.51489167854
+        - --e=0.8063165928385505
+        - --f=-5.073892396696211
+        - --g=2.1319063260908813
+        - --h=18.324183337763486
         env:
         - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
+          value: zipkin.default.svc.cluster.local
+        envFrom:
+        - configMapRef:
+            name: svc-3-configmap
         image: adalrsjr1/microservice:latest
         imagePullPolicy: Always
         name: svc-3
@@ -319,207 +478,38 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
-apiVersion: v1
-kind: Service
+apiVersion: smarttuning.ibm.com/v1alpha1
+kind: SearchSpace
 metadata:
-  name: svc-5
-  namespace: uapp
+  name: svc-3-searchspace
 spec:
-  ports:
-  - name: http
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: svc-5
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: svc-5
-  name: svc-5
-  namespace: uapp
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: svc-5
-  template:
-    metadata:
-      labels:
-        app: svc-5
-    spec:
-      containers:
-      - args:
-        - --name=svc-5
-        - --zipkin=$(ZIPKIN):9411
-        - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
-        env:
-        - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
-        image: adalrsjr1/microservice:latest
-        imagePullPolicy: Always
-        name: svc-5
-        ports:
-        - containerPort: 8080
-      nodeSelector:
-        beta.kubernetes.io/os: linux
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: svc-8
-  namespace: uapp
-spec:
-  ports:
-  - name: http
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: svc-8
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: svc-8
-  name: svc-8
-  namespace: uapp
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: svc-8
-  template:
-    metadata:
-      labels:
-        app: svc-8
-    spec:
-      containers:
-      - args:
-        - --name=svc-8
-        - --zipkin=$(ZIPKIN):9411
-        - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
-        - svc-7.uapp.svc.cluster.local
-        env:
-        - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
-        image: adalrsjr1/microservice:latest
-        imagePullPolicy: Always
-        name: svc-8
-        ports:
-        - containerPort: 8080
-      nodeSelector:
-        beta.kubernetes.io/os: linux
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: svc-9
-  namespace: uapp
-spec:
-  ports:
-  - name: http
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: svc-9
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: svc-9
-  name: svc-9
-  namespace: uapp
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: svc-9
-  template:
-    metadata:
-      labels:
-        app: svc-9
-    spec:
-      containers:
-      - args:
-        - --name=svc-9
-        - --zipkin=$(ZIPKIN):9411
-        - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
-        env:
-        - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
-        image: adalrsjr1/microservice:latest
-        imagePullPolicy: Always
-        name: svc-9
-        ports:
-        - containerPort: 8080
-      nodeSelector:
-        beta.kubernetes.io/os: linux
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: svc-7
-  namespace: uapp
-spec:
-  ports:
-  - name: http
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: svc-7
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: svc-7
-  name: svc-7
-  namespace: uapp
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: svc-7
-  template:
-    metadata:
-      labels:
-        app: svc-7
-    spec:
-      containers:
-      - args:
-        - --name=svc-7
-        - --zipkin=$(ZIPKIN):9411
-        - --sampling=True
-        - --msg-size=100
-        - --load=0.35
-        - --msg-time=100
-        - --mem=0
-        env:
-        - name: ZIPKIN
-          value: zipkin.zipkin.svc.cluster.local
-        image: adalrsjr1/microservice:latest
-        imagePullPolicy: Always
-        name: svc-7
-        ports:
-        - containerPort: 8080
-      nodeSelector:
-        beta.kubernetes.io/os: linux
+  manifests:
+  - name: acmeair-tuning
+    namespace: uapp
+    params:
+    - name: parameter_A
+      number:
+        continuous: true
+        lower: 1
+        step: 1
+        upper: 15
+    - name: parameter_B
+      number:
+        continuous: false
+        lower: 256
+        step: 16
+        upper: 1024
+    - name: parameter_C
+      number:
+        continuous: true
+        lower: 0
+        upper: 1
+    - name: gc
+      options:
+        type: string
+        values:
+        - -Xgcpolicy:gencon
+        - -Xgc:concurrentScavenge
+        - -Xgcpolicy:metronome
+        - -Xgcpolicy:optavgpause
+        - -Xgcpolicy:optthruput

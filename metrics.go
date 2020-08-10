@@ -19,10 +19,10 @@ func SetMemUsage(x int, y int, a float64, b float64, c float64, d float64, e flo
 	for ; i < mem; i++ {
 		a := make([]int8, 0, 1048576*epsilon)
 		overall = append(overall, a)
-		memUsage()
+		//memUsage(mem)
 		time.Sleep(time.Millisecond * 10)
 	}
-	memUsage()
+	memUsage(mem)
 	return &overall
 }
 
@@ -45,12 +45,12 @@ func getMemoryUsage(x int, y int, a float64, b float64, c float64, d float64, e 
 func FreeMemUsed(overall *[][]int8) {
 	overall = nil
 	fmt.Printf("free memory")
-	memUsage()
+	memUsage(0)
 	runtime.GC()
-	memUsage()
+	memUsage(0)
 }
 
-func memUsage() {
+func memUsage(expected uint) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -58,6 +58,7 @@ func memUsage() {
 	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
 	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
 	fmt.Printf("\tNumGc = %v\n", m.NumGC)
+	fmt.Printf("\tExpected = %v\n", expected)
 }
 
 func bToMb(b uint64) uint64 {
@@ -112,7 +113,9 @@ func beale(x float64, y float64) float64 {
 		val = math.Pow((1.5-x+x*y), 2) + math.Pow((2.25-x+(x*math.Pow(y, 2))), 2) + math.Pow((2.625-x+(x*math.Pow(y, 3))), 2)
 		// Maximum for this function is approx. 178000, so we can normalize it to a value between 0 and 0.2 by dividing by 890000
 		val = val/890000 + 0.2 // Make it a value between 0.2 and 0.4
+		fmt.Printf("beale val: %f\n", val)
 	} else {
+		fmt.Printf("beale fallback 0.4\n")
 		// For these cases, we received values outside of our valid search domains
 		// Therefore, let's just use a catch-all function that'll take any parameters
 		// For now, setting it to our upper bound of 0.4 (40% cpu load) - can write a function later
@@ -128,7 +131,9 @@ func himmelblau(x float64, y float64) uint {
 		pct = math.Pow(math.Pow(x, 2)+y-11, 2) + math.Pow(x+math.Pow(y, 2)-7, 2)
 		// Maximum for this function is approx. 890
 		pct = pct / 890 // make it a value between 0 and 1
+		fmt.Printf("himmelblau val: %f\n", pct)
 	} else {
+		fmt.Printf("himmelblau fallback 1\n")
 		// For these cases, we received values outside of our valid search domains
 		// Therefore, let's just use a catch-all function that'll take any parameters
 		// For now, setting it to 100% - can write a function later

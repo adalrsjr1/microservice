@@ -6,7 +6,6 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
-	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -116,6 +115,7 @@ func main() {
 	//calculate the number of requests per second that are handled on average based on the CPU load and processing time
 	load := getCpuUsage(x, y, a, b, c, d, e, f, g, h)
 	microservice.RequestsPerSecond = int((load * 100.0) / float64((float64(microservice.ProcessTime) / 1000.0)))
+	log.Printf("RequestPerSecond: %d -- ProcessTime: %d\n", microservice.RequestsPerSecond, microservice.ProcessTime)
 
 	bufferReader = NewQueue(microservice.RequestsPerSecond)
 
@@ -288,7 +288,8 @@ func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.C
 }
 
 func integerNormalDistribution(mean uint, dev uint) uint {
-	return uint(math.Round(rand.NormFloat64()*float64(dev))) + mean
+	//return uint(math.Round(rand.NormFloat64()*float64(dev))) + mean
+	return 512
 }
 
 func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, target string, requestSize uint, calculationTime uint, bodyBytes []byte, byteMessage []byte,

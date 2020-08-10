@@ -2,9 +2,9 @@
 
 IMAGE=adalrsjr1/microservice
 
-all: clean image publish
+all: clean microservice image publish
 
-microservice: router.go tracer.go metrics.go
+microservice: router.go metrics.go  queue.go routeMap.go tracer.go
 	env GOOS=linux GOARCH=amd64 go build -tags netgo
 
 image: Dockerfile microservice

@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from networkx.drawing.nx_agraph import graphviz_layout
 from collections import OrderedDict
 import pprint
+import random
+random.seed(42)
 import json
 
 
@@ -141,6 +143,14 @@ class Kubernetes:
             args['msgtime'] = msgtime
             args['x'] = x
             args['y'] = y
+            args['a'] = str(random.uniform(-4, 4))
+            args['b'] = str(random.uniform(-250, 250))
+            args['c'] = str(random.uniform(-10, 10))
+            args['d'] = str(random.uniform(1e-5, 1e5))
+            args['e'] = str(random.uniform(-2.5, 2.5))
+            args['f'] = str(random.uniform(5, 10) if random.choice([True, False]) else random.uniform(-10, -5))
+            args['g'] = str(random.uniform(-3, 3))
+            args['h'] = str(random.uniform(-25, 25))
             args['sampling'] = sampling
             args['childs'] = childs
 
@@ -238,11 +248,19 @@ class Kubernetes:
                                 '--msg-size=$(MSG_SIZE)',
                                 '--msg-time=$(MSG_TIME)',
                                 '--x=$(X_VALUE)',
-                                '--y=$(Y_VALUE)'
+                                '--y=$(Y_VALUE)',
+                                '--a=%s' % args['a'],
+                                '--b=%s' % args['b'],
+                                '--c=%s' % args['c'],
+                                '--d=%s' % args['d'],
+                                '--e=%s' % args['e'],
+                                '--f=%s' % args['f'],
+                                '--g=%s' % args['g'],
+                                '--h=%s' % args['h']
                             ] + args['childs'],
                             'env': [
                                 {'name': 'ZIPKIN',
-                                'value': 'zipkin.zipkin.svc.cluster.local'}
+                                'value': 'zipkin.default.svc.cluster.local'}
                             ]
                             ,
                             'envFrom': [
@@ -330,7 +348,7 @@ class ConfigMap:
             childs = [name_prefix+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
             name = name_prefix+str(key)
 
-            yamlFiles.append(self.config_map(name, uappName, msgsize, msgtime, x, y, sampling))
+            yamlFiles.append(self.config_map(name, uappName, random.randint(0, msgsize), random.randint(0, msgtime), random.randint(0, x), random.randint(0, y), sampling))
             
         self.scheme = yamlFiles
         return yamlFiles
@@ -346,10 +364,10 @@ class ConfigMap:
             },
             'data': {
                 'NAME': name,
-                'MSG_TIME': msgtime,
-                'MSG_SIZE': msgsize,
-                'X_VALUE': x,
-                'Y_VALUE': y
+                'MSG_TIME': str(msgtime),
+                'MSG_SIZE': str(msgsize),
+                'X_VALUE': str(x),
+                'Y_VALUE': str(y)
             }
         }
 
@@ -371,7 +389,7 @@ def pathsToMap(paths):
     return routeMap
 
 if __name__=="__main__":
-    g = Graph(10)
+    g = Graph(5)
 
     dc = DockerCompose(g)
     dc.create('svc_', 'zipkin:9411', '100', '100', '2', '3')
@@ -384,7 +402,7 @@ if __name__=="__main__":
     k.dump(out=kubernetes)
 
     c = ConfigMap(g)
-    c.create('uapp', 'svc-', '100', '100', '2', '3', True)
+    c.create('uapp', 'svc-', random.randint(0, 100), random.randint(0, 100), random.randrange(-10, 10), random.randrange(-10, 10), True)
     configmap = open("ConfigMap.yaml", 'w')
     c.dump(out=configmap)
 
