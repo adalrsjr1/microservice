@@ -173,7 +173,11 @@ func handleRequest(name string, client *zipkinhttp.Client, targets []string, req
 	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ok")
-		traverseTargets(name, w, r, client, targets[:], requestSize, calculationTime, load, x, y, requestType, a, b, c, d, e, f, g, h)
+		_, error := traverseTargets(name, w, r, client, targets[:], requestSize, calculationTime, load, x, y, requestType, a, b, c, d, e, f, g, h)
+		if error != nil {
+			http.Error(w, error.Error(), 500)
+			log.Panic(error)
+		}
 	}
 }
 
@@ -181,7 +185,7 @@ func handleRequest(name string, client *zipkinhttp.Client, targets []string, req
 func traverseTargets(name string, w http.ResponseWriter, r *http.Request,
 	client *zipkinhttp.Client, targets []string, requestSize uint,
 	calculationTime uint, load float64, x int, y int, requestType string,
-	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) {
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) (int, error) {
 
 	span, ctx := tracer.StartSpanFromContext(r.Context(), "size")
 
@@ -206,40 +210,38 @@ func traverseTargets(name string, w http.ResponseWriter, r *http.Request,
 		span.Tag("req-size", strconv.Itoa(binary.Size(byteMessage)))
 
 		if err != nil {
-			log.Printf("unable to create client: %+v\n", err)
+			log.Panic("unable to create client: %+v\n", err)
 			http.Error(w, err.Error(), 500)
-			return
 		}
-		defer span.Finish()
 
+		defer span.Finish()
+		log.Println(":: span finished ::")
 		byteMessage = nil
 
 		ctx = zipkin.NewContext(newRequest.Context(), span)
 		newRequest = newRequest.WithContext(ctx)
-
+		log.Println(":: new reqeusts with context ::")
 		res, err := client.DoWithAppSpan(newRequest, "random "+target)
 		if err != nil {
-			log.Printf("call to %s returned error: %+v\n", target, err)
+			log.Panic("call to %s returned error: %+v\n", target, err)
 			http.Error(w, err.Error(), 500)
-			return
 		}
 		bodyBytes, _ := ioutil.ReadAll(res.Body)
 		span.Tag("res-size", strconv.Itoa(binary.Size(bodyBytes)))
 		res.Body.Close()
-		w.Write(bodyBytes)
+		return w.Write(bodyBytes)
 	} else {
 		log.Printf("termination")
 
 		byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
 		w.Header().Set("Content-Type", "octect-stream")
-		w.Write(byteMessage)
-
 		span, _ := tracer.StartSpanFromContext(r.Context(), "size")
 		span.Tag("termination_node", "true")
 		timeElapsed := FinityCpuUsage(calculationTime, x, y, a, b, c, d, e, f, g, h)
 		span.Tag("elapsed_time_ms", strconv.FormatInt(int64(timeElapsed/time.Millisecond), 10))
 
 		span.Finish()
+		return w.Write(byteMessage)
 	}
 }
 
@@ -247,43 +249,49 @@ func AllTargets(client *zipkinhttp.Client, targets []string, requestSize uint, c
 	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ok")
-		CallAllTargets(w, r, client, targets[:], requestSize, calculationTime, serv, x, y, a, b, c, d, e, f, g, h)
+		_, error := CallAllTargets(w, r, client, targets[:], requestSize, calculationTime, serv, x, y, a, b, c, d, e, f, g, h)
+		if error != nil {
+			http.Error(w, error.Error(), 500)
+			log.Panic(error)
+		}
 	}
 }
 
 func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, targets []string, requestSize uint, calculationTime uint, serv *Service, x int, y int,
-	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) {
-
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) (int, error){
+	log.Println("-- calling all -- ")
 	FinityCpuUsage(calculationTime, x, y, a, b, c, d, e, f, g, h)
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
 
 	var bodyBytes []byte
-
+	log.Println("-- instantiating new requests -- ")
 	req := new(Request)
 
 	//Set 'Value' as the location that sent the request
 	req.Value = r.RemoteAddr
-
+	log.Println("-- bufering to queue -- ")
 	bufferReader.Push(req)
-
+	log.Println("-- sleeping -- ")
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////NEW ADDITION TO THIS FUNCTION/////////////////////////////////////////////////////////////////////////////
 	//Simulate the process time for this request after being pushed on the queue by using the sleep method
 	time.Sleep(time.Duration(serv.ProcessTime) * time.Millisecond)
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+	log.Println(" -- unbuffering -- ")
 	bufferReader.Pop()
 
+	chn := make(chan, error)
 	for _, target := range targets {
 		log.Printf("Sending Request to target: %s", target)
-		go sendRequest(w, r, client, target, requestSize, calculationTime, bodyBytes, byteMessage, a, b, c, d, e, f, g, h)
+
+		go sendRequest(w, r, client, target, requestSize, calculationTime, bodyBytes, byteMessage, a, b, c, d, e, f, g, h, chn)
 
 	}
-
+	log.Println("-- writing body -- ")
 	// BE CAREFUL! The bodyBytes aren't filled with the values from the requests. It is missing some sync here to
 	// wait data from all requests before write out the response
-	w.Write(bodyBytes)
+	return w.Write(bodyBytes)
 
 }
 
@@ -292,14 +300,16 @@ func integerNormalDistribution(mean uint, dev uint) uint {
 	return 512
 }
 
-func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, target string, requestSize uint, calculationTime uint, bodyBytes []byte, byteMessage []byte,
-	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) {
+func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, target string, requestSize uint,
+	calculationTime uint, bodyBytes []byte, byteMessage []byte,
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64, chn error)  {
 
 	//span := tracer.StartSpan("size")
+	log.Println("** sending request **")
 	span, _ := tracer.StartSpanFromContext(r.Context(), "size") //zipkin.SpanFromContext(r.Context())
 	span.Tag("termination_node", "false")
 	log.Printf("-->" + target)
-
+	log.Println("** new request **")
 	newRequest, err := http.NewRequest("POST", "http://"+target+":8080/", bytes.NewBuffer(byteMessage))
 	span.Tag("source", globalName)
 	span.Tag("target", target)
@@ -309,12 +319,15 @@ func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Clie
 		log.Printf("unable to create client: %+v\n", err)
 		http.Error(w, err.Error(), 500)
 	}
+	log.Println("** defering span **")
 	defer span.Finish()
 	span.Tag("req-size", strconv.Itoa(binary.Size(bodyBytes)))
 	//ctx := zipkin.NewContext(newRequest.Context(), span)
 	//newRequest = newRequest.WithContext(ctx)
 
+	log.Println("** client do with app span")
 	res, err := client.DoWithAppSpan(newRequest, target)
+	chn <- err
 	if err != nil {
 		log.Printf("call to %s returned error: %+v\n", target, err)
 		http.Error(w, err.Error(), 500)
@@ -324,7 +337,14 @@ func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Clie
 	bodyBytes = append(bodyBytes, auxBodyBytes...)
 	span.Tag("res-size", strconv.Itoa(binary.Size(auxBodyBytes)))
 
-	res.Body.Close()
+	log.Println("** befor close body **")
+	err2 := res.Body.Close()
+	if err != nil {
+		log.Panic(err)
+		http.Error(w, err2.Error(), 500)
+		return
+	}
+	log.Println("** body closed **")
 }
 
 //func floatNormalDistribution(mean float64, dev float64) float64 {

@@ -6,9 +6,11 @@ from networkx.drawing.nx_agraph import graphviz_layout
 from collections import OrderedDict
 import pprint
 import random
+import copy
 random.seed(42)
 import json
 import os
+
 
 
 class Graph:
@@ -129,33 +131,26 @@ class Kubernetes:
     def dump(self, out=sys.stdout):
         dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
-    def create(self, kobject, uappName, svc_name, svc_num, msgsize, msgtime, x, y, sampling, nodename=''):
-        yamlFiles = [self.namespace(uappName)]
+    def create(self, kobject, uappName, svc_name, svc_num, msgsize, msgtime, sampling, nodename=''):
+        # yamlFiles = [self.namespace(uappName)]
+        yamlFiles = []
 
         adjacency = g.adjacency()
         args = {}
 
         for key, value in adjacency.items():
+            if key != svc_num:
+                continue
+            name = svc_name + '-' + str(svc_num) + '-mock'
             childs = [svc_name+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
-            name = svc_name+'-'+str(svc_num)
+
             args['name'] = name
             args['msgsize'] = msgsize
             args['msgtime'] = msgtime
-            args['x'] = x
-            args['y'] = y
-            args['a'] = str(random.uniform(-4, 4))
-            args['b'] = str(random.uniform(-250, 250))
-            args['c'] = str(random.uniform(-10, 10))
-            args['d'] = str(random.uniform(1e-5, 1e5))
-            args['e'] = str(random.uniform(-2.5, 2.5))
-            args['f'] = str(random.uniform(5, 10) if random.choice([True, False]) else random.uniform(-10, -5))
-            args['g'] = str(random.uniform(-3, 3))
-            args['h'] = str(random.uniform(-25, 25))
             args['sampling'] = sampling
             args['childs'] = childs
-
             root=not bool(key)
-            
+
         if kobject == 'service':
             yamlFiles.append(self.service(name, uappName, root=root))
         elif kobject == 'deployment':
@@ -167,6 +162,7 @@ class Kubernetes:
         return yamlFiles
 
     def namespace(self, name):
+        return ''
         return {
             'apiVersion': 'v1',
             'kind': 'Namespace',
@@ -215,7 +211,6 @@ class Kubernetes:
         }
         if bool(nodename):
             nodeSelector['kubernetes.io/hostname'] = nodename
-
         return {
             'apiVersion': 'apps/v1',
             'kind': 'Deployment',
@@ -252,14 +247,14 @@ class Kubernetes:
                                 '--msg-time=$(MSG_TIME)',
                                 '--x=$(X_VALUE)',
                                 '--y=$(Y_VALUE)',
-                                '--a=%s' % args['a'],
-                                '--b=%s' % args['b'],
-                                '--c=%s' % args['c'],
-                                '--d=%s' % args['d'],
-                                '--e=%s' % args['e'],
-                                '--f=%s' % args['f'],
-                                '--g=%s' % args['g'],
-                                '--h=%s' % args['h']
+                                '--a=$(A_VALUE)',
+                                '--b=$(B_VALUE)',
+                                '--c=$(C_VALUE)',
+                                '--d=$(D_VALUE)',
+                                '--e=$(E_VALUE)',
+                                '--f=$(F_VALUE)',
+                                '--g=$(G_VALUE)',
+                                '--h=$(H_VALUE)'
                             ] + args['childs'],
                             'env': [
                                 {'name': 'ZIPKIN',
@@ -279,57 +274,84 @@ class Kubernetes:
     
     def searchspace(self, name, namespace):
         return {
-            'apiVersion': 'smarttuning.ibm.com/v1alpha1',
+            'apiVersion': 'smarttuning.ibm.com/v1alpha2',
             'kind': 'SearchSpace',
             'metadata': {
                 'name': name + '-searchspace'
             },
             'spec': {
-                'manifests': [{
-                    'name': 'acmeair-tuning',
-                    'namespace': namespace,
-                    'params': [
+                'deployment': '',
+                'namespace': namespace,
+                'service': '',
+                'manifests': [
+                    {
+                        'name': name,
+                        'type': 'deployment',
+                        'name': name+'-configmap',
+                        'type': 'configMap'
+                    }
+                ]
+            },
+            'data': {
+                'name': '',
+                'tunables': {
+                    'number': [
                         {
-                        'name': 'parameter_A',
-                        'number': {
-                            'lower': 1,
-                            'upper': 15,
-                            'step': 1,
-                            'continuous': True
-                            }
+                            'name': 'X_VALUE',
+                            'lower': '-10',
+                            'upper': '10',
+                            'step': '1'
                         },
                         {
-                        'name': 'parameter_B',
-                        'number': {
-                            'lower': 256,
-                            'upper': 1024,
-                            'step': 16,
-                            'continuous': False
-                            }
+                            'name': 'Y_VALUE',
+                            'lower': '-10',
+                            'upper': '10',
+                            'step': '1'
                         },
                         {
-                        'name': 'parameter_C',
-                        'number': {
-                            'lower': 0,
-                            'upper': 1,
-                            'continuous': True
-                            },
+                            'name': 'A_VALUE',
+                            'lower': '-4',
+                            'upper': '4',
                         },
                         {
-                        'name': 'gc',
-                        'options': {
-                            'type': 'string',
-                            'values': [
-                                '-Xgcpolicy:gencon',
-                                '-Xgc:concurrentScavenge',
-                                '-Xgcpolicy:metronome',
-                                '-Xgcpolicy:optavgpause',
-                                '-Xgcpolicy:optthruput'
-                            ]
-                        }
-                    }],
-                }]
-
+                            'name': 'B_VALUE',
+                            'lower': '-250',
+                            'upper': '250',
+                        },
+                        {
+                            'name': 'C_VALUE',
+                            'lower': '-10',
+                            'upper': '10',
+                        },
+                        {
+                            'name': 'D_VALUE',
+                            'lower': '1e-15',
+                            'upper': '1e15',
+                            'step': '10'
+                        },
+                        {
+                            'name': 'E_VALUE',
+                            'lower': '-2.5',
+                            'upper': '2.5',
+                        },
+                        {
+                            # can be also (-5,-10)
+                            'name': 'F_VALUE',
+                            'lower': '5',
+                            'upper': '10',
+                        },
+                        {
+                            'name': 'G_VALUE',
+                            'lower': '-3',
+                            'upper': '3',
+                        },
+                        {
+                            'name': 'H_VALUE',
+                            'lower': '-25',
+                            'upper': '25',
+                        },
+                    ]
+                }
             }
         }
 
@@ -341,21 +363,21 @@ class ConfigMap:
     def dump(self, out=sys.stdout):
         dump_all(self.scheme, out, tags=False, default_flow_style=False, encoding='utf8')
 
-    def create(self, uappName, svc_name, svc_num, msgsize, msgtime, x, y, sampling, nodename=''):
+    def create(self, uappName, svc_name, svc_num, msgsize, msgtime, sampling, nodename=''):
         yamlFiles = []
         adjacency = g.adjacency()
-        args = {}
+        # args = {}
+        #
+        # for key, value in adjacency.items():
+        #     childs = [svc_name+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
+        #     name = svc_name+str(key)
 
-        for key, value in adjacency.items():
-            childs = [svc_name+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
-            name = svc_name+str(key)
-
-        yamlFiles.append(self.config_map(svc_name+'-'+str(svc_num), uappName, msgsize, msgtime, x, y, sampling))
+        yamlFiles.append(self.config_map(svc_name+'-'+str(svc_num)+'-mock', uappName, msgsize, msgtime, sampling))
 
         self.scheme = yamlFiles
         return yamlFiles
 
-    def config_map(self, name, namespace, msgsize, msgtime, x, y, sampling):
+    def config_map(self, name, namespace, msgsize, msgtime, sampling):
         config_map_name = name + '-configmap'
         return {
             'apiVersion': 'v1',
@@ -368,10 +390,20 @@ class ConfigMap:
                 'NAME': name,
                 'MSG_TIME': str(msgtime),
                 'MSG_SIZE': str(msgsize),
-                'X_VALUE': str(x),
-                'Y_VALUE': str(y)
+                'X_VALUE': str(random.randint(-10, 10)),
+                'Y_VALUE': str(random.randint(-10, 10)),
+                'A_VALUE': str(random.uniform(-4, 4)),
+                'B_VALUE': str(random.uniform(-250, 250)),
+                'C_VALUE': str(random.uniform(-10, 10)),
+                'D_VALUE': str(random.uniform(1e-5, 1e5)),
+                'E_VALUE': str(random.uniform(-2.5, 2.5)),
+                'F_VALUE': str(random.uniform(5, 10) if random.choice([True, False]) else random.uniform(-10, -5)),
+                'G_VALUE': str(random.uniform(-3, 3)),
+                'H_VALUE': str(random.uniform(-25, 25))
+
             }
         }
+
 
 def pathsToMap(paths):
     # Convert node numbers to service name, add empty string to indicate that it is the end of a path
@@ -413,16 +445,17 @@ if __name__=="__main__":
 
     # Creates all K8 related manifest files
     objects = ['service', 'deployment', 'searchspace']
-    for i in range(1, numOfApps+1):
+    for i in range(numOfApps):
         k = Kubernetes(g)
         for o in objects:
-            k.create(o, 'uapp', appName, i, '100', '100', '2', '3', True)
+            k.create(o, 'uapp', appName, i, '100', '100', True)
             fileName = appName+'-'+str(i)+'-'+o
+
             kubernetes = open('generated/'+fileName+'.yaml', 'w')
             k.dump(out=kubernetes)
         
         c = ConfigMap(g)
-        c.create('uapp', appName, i, random.randint(0, 100), random.randint(0, 100), random.randrange(-10, 10), random.randrange(-10, 10), True)
+        c.create('uapp', appName, i, random.randint(100, 200), random.randint(100, 200), True)
         fileName = appName+'-'+str(i)+'-configmap'
         configmap = open('generated/'+fileName+'.yaml', 'w')
         c.dump(out=configmap)
