@@ -6,9 +6,9 @@ Ensure that you have `pip` installed on your environment, than run:
 
 ## Running
 
-`python uApp-generator`
+`python3 uApp-generator.py`
 
-The parameters are hardcoded.
+The parameters are hardcoded. The script creates a directory named `generated/` where it will dump all of the manifests (deployment, service, searchspace, and  configmap) of each service, totalling 10 (number of services is hardcoded)
 
 ## Requirements
 
