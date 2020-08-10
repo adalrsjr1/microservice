@@ -115,7 +115,7 @@ func main() {
 
 	//calculate the number of requests per second that are handled on average based on the CPU load and processing time
 	load := getCpuUsage(x, y, a, b, c, d, e, f, g, h)
-	microservice.RequestsPerSecond = int((load * 100.0) / float64((float64(microservice.ProcessTime) / 1000.0)))
+	microservice.RequestsPerSecond = int(load / float64((float64(microservice.ProcessTime) / 1000.0)))
 
 	bufferReader = NewQueue(microservice.RequestsPerSecond)
 
