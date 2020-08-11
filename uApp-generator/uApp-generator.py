@@ -138,12 +138,13 @@ class Kubernetes:
         adjacency = g.adjacency()
         args = {}
 
+        namespace = 'uapp'
         for key, value in adjacency.items():
             if key != svc_num:
                 continue
-            name = svc_name + '-' + str(svc_num) + '-mock'
-            childs = [svc_name+str(child)+'.'+uappName+'.svc.cluster.local' for child, v in value.items()]
 
+            name = svc_name + '-' + str(svc_num) + '-mock'
+            childs = [f'svc-{child}-mock.{namespace}.svc.cluster.local' for child, v in value.items()]
             args['name'] = name
             args['msgsize'] = msgsize
             args['msgtime'] = msgtime
@@ -409,7 +410,7 @@ def pathsToMap(paths):
     # Convert node numbers to service name, add empty string to indicate that it is the end of a path
     for path in paths:
         for i in range(len(path)):
-            path[i] = "svc_" + str(path[i])
+            path[i] = "svc-" + str(path[i]) + "-mock"
         path.append("")
         
     # Construct routeMap

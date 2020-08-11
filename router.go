@@ -175,7 +175,7 @@ func handleRequest(name string, client *zipkinhttp.Client, targets []string, req
 		log.Printf("ok")
 		_, error := traverseTargets(name, w, r, client, targets[:], requestSize, calculationTime, load, x, y, requestType, a, b, c, d, e, f, g, h)
 		if error != nil {
-			http.Error(w, error.Error(), 500)
+			http.Error(w, error.Error(), http.StatusBadGateway)
 			log.Panic(error)
 		}
 	}
@@ -263,7 +263,6 @@ func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.C
 	FinityCpuUsage(calculationTime, x, y, a, b, c, d, e, f, g, h)
 	byteMessage := make([]byte, integerNormalDistribution(requestSize, 10))
 
-	var bodyBytes []byte
 	log.Println("-- instantiating new requests -- ")
 	req := new(Request)
 
@@ -281,17 +280,28 @@ func CallAllTargets(w http.ResponseWriter, r *http.Request, client *zipkinhttp.C
 	log.Println(" -- unbuffering -- ")
 	bufferReader.Pop()
 
-	chn := make(chan, error)
+	chn := make(chan byte, len(targets))
 	for _, target := range targets {
 		log.Printf("Sending Request to target: %s", target)
 
-		go sendRequest(w, r, client, target, requestSize, calculationTime, bodyBytes, byteMessage, a, b, c, d, e, f, g, h, chn)
-
+		go func(ch chan byte) {
+			body, err := sendRequest(w, r, client, target, requestSize, calculationTime, byteMessage, byteMessage, a, b, c, d, e, f, g, h)
+			chn <- byte(body)
+			if err != nil {
+				w.Write(make([]byte, 0))
+				http.Error(w, err.Error(), http.StatusBadGateway)
+				log.Panic(err)
+			}
+		}(chn)
 	}
 	log.Println("-- writing body -- ")
 	// BE CAREFUL! The bodyBytes aren't filled with the values from the requests. It is missing some sync here to
 	// wait data from all requests before write out the response
-	return w.Write(bodyBytes)
+	bodybytes := byte(0)
+	for range targets {
+		bodybytes += <- chn
+	}
+	return w.Write(make([]byte, bodybytes))
 
 }
 
@@ -302,7 +312,7 @@ func integerNormalDistribution(mean uint, dev uint) uint {
 
 func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Client, target string, requestSize uint,
 	calculationTime uint, bodyBytes []byte, byteMessage []byte,
-	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64, chn error)  {
+	a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) (int, error)  {
 
 	//span := tracer.StartSpan("size")
 	log.Println("** sending request **")
@@ -317,7 +327,8 @@ func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Clie
 
 	if err != nil {
 		log.Printf("unable to create client: %+v\n", err)
-		http.Error(w, err.Error(), 500)
+		//http.Error(w, err.Error(), 500)
+		return -1, err
 	}
 	log.Println("** defering span **")
 	defer span.Finish()
@@ -327,11 +338,10 @@ func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Clie
 
 	log.Println("** client do with app span")
 	res, err := client.DoWithAppSpan(newRequest, target)
-	chn <- err
 	if err != nil {
 		log.Printf("call to %s returned error: %+v\n", target, err)
-		http.Error(w, err.Error(), 500)
-		return
+		//http.Error(w, err.Error(), 500)
+		return -1, err
 	}
 	auxBodyBytes, _ := ioutil.ReadAll(res.Body)
 	bodyBytes = append(bodyBytes, auxBodyBytes...)
@@ -339,12 +349,13 @@ func sendRequest(w http.ResponseWriter, r *http.Request, client *zipkinhttp.Clie
 
 	log.Println("** befor close body **")
 	err2 := res.Body.Close()
-	if err != nil {
+	if err2 != nil {
 		log.Panic(err)
-		http.Error(w, err2.Error(), 500)
-		return
+		//http.Error(w, err2.Error(), 500)
+		return -1, err2
 	}
 	log.Println("** body closed **")
+	return len(bodyBytes), nil
 }
 
 //func floatNormalDistribution(mean float64, dev float64) float64 {

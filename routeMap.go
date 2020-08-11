@@ -1,2 +1,2 @@
 package main
-var generatedRouteMap = map[string]map[string]string{"0": {"svc_0": "svc_2", "svc_2": "svc_1", "svc_1": "svc_4", "svc_4": "svc_3", "svc_3": ""}}
+var generatedRouteMap = map[string]map[string]string{"0": {"svc-0-mock": "svc-2-mock", "svc-2-mock": "svc-1-mock", "svc-1-mock": "svc-4-mock", "svc-4-mock": "svc-3-mock", "svc-3-mock": ""}}
