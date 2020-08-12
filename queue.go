@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"sync"
 )
 
@@ -17,6 +18,7 @@ type Request struct {
 * @return *Queue a new Queue structure with the provided size
 **/
 func NewQueue(size int) *Queue {
+	log.Printf("creating queue of size %d\n", size)
 	return &Queue{
 		requests: make([]*Request, size),
 		size:     size,

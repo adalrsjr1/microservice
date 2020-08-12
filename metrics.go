@@ -90,7 +90,6 @@ func getCpuUsage(x int, y int, a float64, b float64, c float64, d float64, e flo
 func FinityCpuUsage(timeElapsed uint, x int, y int, a float64, b float64, c float64, d float64, e float64, f float64, g float64, h float64) time.Duration {
 	start := time.Now()
 	sleepTime := getCpuUsage(x, y, a, b, c, d, e, f, g, h)
-
 	var elapsed time.Duration
 	for {
 		unladenTime := time.Now().UnixNano() / int64(time.Millisecond)

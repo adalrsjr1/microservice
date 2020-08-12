@@ -1,8 +1,9 @@
 from yaml import dump, dump_all, load
 import sys
 import networkx as nx
+import numpy as np
 import matplotlib.pyplot as plt
-from networkx.drawing.nx_agraph import graphviz_layout
+#from networkx.drawing.nx_agraph import graphviz_layout
 from collections import OrderedDict
 import pprint
 import random
@@ -14,24 +15,54 @@ import os
 
 
 class Graph:
-    def __init__(self, n_nodes, seed=31, star=False):
+    def __init__(self, n_nodes, seed=31, topology='planar'):
         self.seed = seed
-        self.star = star
-        self.g = self.__newgraph(n_nodes, seed, star)
+        self.topology = topology
+        self.g = self.__newgraph(n_nodes, seed, topology)
 
-    def __newgraph(self, n_nodes, seed, star):
+    def __newgraph(self, n_nodes, seed, topology):
         m = 2
-        if star:
+        if topology == 'star':
             m = n_nodes-1
         g = nx.barabasi_albert_graph(n_nodes, m, seed=seed)
 
+        edges = g.edges()
+        if topology == 'star' or topology == 'planar':
+            edges = nx.dfs_tree(g, 0).edges()
+
         dag = nx.DiGraph()
-
-        edges = nx.dfs_tree(g, 0).edges()
-
         dag.add_edges_from(edges)
 
+        # corner case to avoid dangling nodes in star topoligy
+        if topology == 'star':
+            first_edge = None
+            for edge in edges:
+                first_edge = edge
+                break
+            dag.remove_edge(*first_edge)
+            dag.add_edge(first_edge[1], first_edge[0])
+
         return dag
+
+    def best(self):
+
+        max_degree = 0
+        value_max_degree = 0
+        for node in self.nodes():
+            v = self.g.degree[node]
+            if v > value_max_degree:
+                value_max_degree = v
+                max_degree = node
+
+        pr = nx.pagerank(self.g)
+        rank_vector=np.array([[*pr.values()]])
+        best_node=np.argmax(rank_vector)
+        return best_node, max_degree
+
+    def important_path(self):
+        print('topological sorting: ', list(reversed(list(nx.topological_sort(self.g)))))
+        best_node, higher_degree = self.best()
+        return nx.algorithms.shortest_paths.generic.shortest_path(self.g, source=0, target=best_node), best_node, higher_degree
 
     def check(self):
         return nx.is_directed_acyclic_graph(self.g) and nx.is_tree(self.g)
@@ -47,12 +78,28 @@ class Graph:
         return nx.to_dict_of_dicts(self.g)
 
     def draw(self):
-        labels = {}
-        for idx, node in enumerate(self.g.nodes()):
-            labels[node] = idx
 
-        pos = graphviz_layout(self.g)
-        nx.draw(self.g,pos, arrows=True)
+        labels = {}
+        best_path, best_node, higher_degree = self.important_path()
+        color_map = []
+        for idx, node in enumerate(self.g.nodes()):
+            labels[node] = node
+            if node == higher_degree:
+                color_map.append('green')
+            elif node == best_node:
+                color_map.append('red')
+            elif node in best_path:
+                color_map.append('orange')
+            else:
+                color_map.append('cyan')
+
+
+        if self.topology == 'non-planar':
+            pos = nx.circular_layout(self.g)
+        else:
+            pos = nx.planar_layout(self.g)
+
+        nx.draw(self.g,pos, node_color=color_map, arrows=True)
         nx.draw_networkx_labels(self.g, pos, labels)
         plt.show()
 
@@ -61,7 +108,7 @@ class Graph:
         for idx, node in enumerate(self.g.nodes()):
             labels[node] = idx
 
-        pos = graphviz_layout(self.g)
+        pos = nx.spring_layout(self.g)
         nx.draw(self.g,pos, arrows=True)
         nx.draw_networkx_labels(self.g, pos, labels)
         plt.savefig('graph.pdf')
@@ -144,7 +191,8 @@ class Kubernetes:
                 continue
 
             name = svc_name + '-' + str(svc_num) + '-mock'
-            childs = [f'svc-{child}-mock.{namespace}.svc.cluster.local' for child, v in value.items()]
+            childs = [f'svc-{child}-mock' for child, v in value.items()]
+            #childs = [f'svc-{child}-mock.{namespace}.svc.cluster.local' for child, v in value.items()]
             args['name'] = name
             args['msgsize'] = msgsize
             args['msgtime'] = msgtime
@@ -423,13 +471,22 @@ def pathsToMap(paths):
         routeMap[str(idx)] = route
     return routeMap
 
+import sys
 if __name__=="__main__":
+    topologies = ['planar', 'star', 'non-planar']
+    topology = topologies[0]
+    print(sys.argv, len(sys.argv))
+    if len(sys.argv) <= 1:
+        numOfApps = 5
+    else:
+        numOfApps = int(sys.argv[1])
+        if len(sys.argv) > 2 and sys.argv[2] in topologies:
+            topology = sys.argv[2]
 
-    numOfApps = 5
     appName = 'svc'
 
-    g = Graph(numOfApps)
-
+    g = Graph(numOfApps, topology=topology)
+    g.draw()
     # Creates the directory to dump all manifests
     try:
         os.mkdir(os.getcwd()+'/generated')
