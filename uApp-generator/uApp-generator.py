@@ -315,6 +315,14 @@ class Kubernetes:
                                 'name': name + '-configmap'}}
                             ]
                         }],
+                        'readnessProbe': {
+                            'httpGet': {
+                                'path': '/all',
+                                'port': 8080
+                            },
+                            'initialDelaySeconds': 2,
+                            'periodSeconds': 10
+                        },
                         'nodeSelector': nodeSelector
                     }
                 }
@@ -326,82 +334,81 @@ class Kubernetes:
             'apiVersion': 'smarttuning.ibm.com/v1alpha2',
             'kind': 'SearchSpace',
             'metadata': {
-                'name': name + '-searchspace'
+                'name': name + '-searchspace',
+                'namespace': namespace
             },
             'spec': {
-                'deployment': '',
+                'deployment': name,
                 'namespace': namespace,
-                'service': '',
+                'service': name,
                 'manifests': [
                     {
-                        'name': name,
-                        'type': 'deployment',
                         'name': name+'-configmap',
                         'type': 'configMap'
                     }
                 ]
             },
-            'data': {
-                'name': '',
+            'data': [{
+                'name': name+'-configmap',
                 'tunables': {
                     'number': [
                         {
                             'name': 'X_VALUE',
-                            'lower': '-10',
-                            'upper': '10',
-                            'step': '1'
+                            'lower': -10,
+                            'upper': 10,
+                            'step': 1
                         },
                         {
                             'name': 'Y_VALUE',
-                            'lower': '-10',
-                            'upper': '10',
-                            'step': '1'
+                            'lower': -10,
+                            'upper': 10,
+                            'step': 1
                         },
                         {
                             'name': 'A_VALUE',
-                            'lower': '-4',
-                            'upper': '4',
+                            'lower': -4,
+                            'upper': 4,
                         },
                         {
                             'name': 'B_VALUE',
-                            'lower': '-250',
-                            'upper': '250',
+                            'lower': -250,
+                            'upper': 250,
                         },
                         {
                             'name': 'C_VALUE',
-                            'lower': '-10',
-                            'upper': '10',
+                            'lower': -10,
+                            'upper': 10,
                         },
                         {
                             'name': 'D_VALUE',
-                            'lower': '1e-15',
-                            'upper': '1e15',
-                            'step': '10'
+                            'lower': 1e-15,
+                            'upper': 1e15,
+                            'step': 10
                         },
                         {
                             'name': 'E_VALUE',
-                            'lower': '-2.5',
-                            'upper': '2.5',
+                            'lower': -2.5,
+                            'upper': 2.5,
                         },
                         {
                             # can be also (-5,-10)
                             'name': 'F_VALUE',
-                            'lower': '5',
-                            'upper': '10',
+                            'lower': 5,
+                            'upper': 10,
                         },
                         {
                             'name': 'G_VALUE',
-                            'lower': '-3',
-                            'upper': '3',
+                            'lower': -3,
+                            'upper': 3,
                         },
                         {
                             'name': 'H_VALUE',
-                            'lower': '-25',
-                            'upper': '25',
+                            'lower': -25,
+                            'upper': 25,
                         },
                     ]
                 }
-            }
+            }]
         }
 
 class ConfigMap:

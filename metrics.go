@@ -20,7 +20,9 @@ func SetMemUsage(x int, y int, a float64, b float64, c float64, d float64, e flo
 		a := make([]int8, 0, 1048576*epsilon)
 		overall = append(overall, a)
 		//memUsage(mem)
-		time.Sleep(time.Millisecond * 10)
+		if i % 100 == 0 {
+			time.Sleep(time.Millisecond * 10)
+		}
 	}
 	memUsage(mem)
 	return &overall

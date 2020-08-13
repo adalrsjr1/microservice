@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
 	"math"
@@ -10,9 +11,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
-
-	"github.com/gorilla/mux"
 )
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -110,6 +108,7 @@ func main() {
 
 
 	r.Methods("POST").Path("/all").HandlerFunc(callAllTargets("all", microservice, addrs))
+	r.Methods("GET").Path("/all").HandlerFunc(callAllTargets("all", microservice, addrs))
 	r.Methods("POST").Path("/random").HandlerFunc(callRandomTargets("random", microservice, addrs))
 
 	for key, _ := range generatedRouteMap {
@@ -137,8 +136,8 @@ func main() {
 		Handler:      r,
 		Addr:         ":"+globalPort,
 		// Good practice: enforce timeouts for servers you create!
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		//WriteTimeout: 15 * time.Second,
+		//ReadTimeout:  15 * time.Second,
 	}
 	log.Fatal(srv.ListenAndServe())
 }
