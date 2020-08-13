@@ -21,6 +21,11 @@ class Graph:
         self.g = self.__newgraph(n_nodes, seed, topology)
 
     def __newgraph(self, n_nodes, seed, topology):
+        if n_nodes == 1:
+            dag = nx.DiGraph()
+            dag.add_node(0)
+            return dag
+        
         m = 2
         if topology == 'star':
             m = n_nodes-1
