@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"github.com/gorilla/mux"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/uber/jaeger-lib/metrics"
 	"io/ioutil"
 	"log"
 	"math"
@@ -12,6 +14,11 @@ import (
 	"os"
 	"strconv"
 	"time"
+	opentracing "github.com/opentracing/opentracing-go"
+
+	"github.com/uber/jaeger-client-go"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
+	jaegerlog "github.com/uber/jaeger-client-go/log"
 )
 
 /**
@@ -47,6 +54,7 @@ var (
 	zipkin_black_hole   string
 	sampling_black_hole string
 	throttling          <-chan time.Time
+	root				bool
 )
 
 func main() {
@@ -77,11 +85,52 @@ func main() {
 		log.Fatal("argument --name must be set")
 	}
 	globalName = name
+	root = false
+	if globalName == "svc-0-mock" {
+		root = true
+	}
 	globalPort = strconv.Itoa(port)
+	rand.Seed(randomSeed)
+
+	log.Println("setting tracer")
+	// Sample configuration for testing. Use constant sampling to sample every trace
+	// and enable LogSpan to log every span via configured Logger.
+	sampling, _ := strconv.ParseFloat(sampling_black_hole, 64)
+	cfg := jaegercfg.Configuration{
+		ServiceName: name,
+		Sampler:     &jaegercfg.SamplerConfig{
+			Type:  jaeger.SamplerTypeConst,
+			Param: sampling,
+		},
+		//LocalAgentHostPort instructs reporter to send spans to jaeger-agent at this address. Can be provided by FromEnv() via the environment variable named JAEGER_AGENT_HOST / JAEGER_AGENT_PORT
+		Reporter:    &jaegercfg.ReporterConfig{
+			LogSpans: true,
+			LocalAgentHostPort: zipkin_black_hole,
+		},
+	}
+
+	// Example logger and metrics factory. Use github.com/uber/jaeger-client-go/log
+	// and github.com/uber/jaeger-lib/metrics respectively to bind to real logging and metrics
+	// frameworks.
+	jLogger := jaegerlog.StdLogger
+	jMetricsFactory := metrics.NullFactory
+
+	// Initialize tracer with a logger and a metrics factory
+	tracer, closer, err := cfg.NewTracer(
+		jaegercfg.Logger(jLogger),
+		jaegercfg.Metrics(jMetricsFactory),
+
+	)
+	if err != nil {
+		log.Printf("error to initialize tracer: %+v\n", err)
+	}
+	// Set the singleton opentracing.Tracer with the Jaeger tracer.
+	opentracing.SetGlobalTracer(tracer)
+	defer closer.Close()
 
 	log.Printf("listening on %s", name)
 
-	rand.Seed(randomSeed)
+
 
 	//Create an object that reflects the service executing this code
 	//Should have a name, microservices that it depends on, the number of dependencies, and the number of requests that it can handle
@@ -139,7 +188,7 @@ func integerNormalDistribution(mean uint, dev uint) uint {
 	return uint(math.Round(rand.NormFloat64()*float64(dev))) + mean
 }
 
-func callNext(target string, requestType string, service *Service, w http.ResponseWriter, r *http.Request) ([]byte, int) {
+func callNext(target string, requestType string, service *Service, w http.ResponseWriter, tracer *opentracing.Tracer, clientSpan *opentracing.Span) ([]byte, int) {
 	<-throttling
 	log.Println("-- buffering to queue -- ")
 
@@ -147,10 +196,24 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 	if target != "" {
 		w.Header().Set("Next-Hop", target)
 		w.Header().Set("ST-Termination", "false")
+
+		url := "http://"+target+":"+globalPort+"/"+requestType
 		log.Printf("Callling next %s\n", "http://"+target+":"+globalPort+"/"+requestType)
-		resp, err := http.Post("http://"+target+":"+globalPort+"/"+requestType, "application/octet-stream", bytes.NewBuffer(body))
+		//resp, err := http.Post(url, "application/octet-stream", bytes.NewBuffer(body))
+		req, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
+
+		// Set some tags on the clientSpan to annotate that it's the client span. The additional HTTP tags are useful for debugging purposes.
+		ext.SpanKindRPCClient.Set(*clientSpan)
+		ext.HTTPUrl.Set(*clientSpan, url)
+		ext.HTTPMethod.Set(*clientSpan, "GET")
+
+		// Inject the client span context into the headers
+		(*tracer).Inject((*clientSpan).Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
+		resp, err := http.DefaultClient.Do(req)
+
+		(*tracer).Inject((*clientSpan).Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
 		if err != nil {
-			log.Printf("Error calling %s\n", "http://"+target+":"+globalPort+"/"+requestType)
+			log.Printf("Error calling %s\n", url)
 			w.Header().Set("ST-Size-Bytes", "0")
 			return []byte{0}, http.StatusBadGateway
 		}
@@ -178,16 +241,26 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 }
 
 func handleRequest(name string, requestType string, service *Service) http.HandlerFunc {
-
+	tracer := opentracing.GlobalTracer()
 	return func(w http.ResponseWriter, r *http.Request) {
+		var span opentracing.Span
+		if !root {
+			spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
+			span = tracer.StartSpan(name+"-server", ext.RPCServerOption(spanCtx))
+		} else {
+			span = tracer.StartSpan(requestType)
+			defer span.Finish()
+		}
+
+
 		target := getNextTarget(name, requestType)
 		w.Header().Set("Content-Type", "application/octet-stream")
 
-		body, httpStatus := callNext(target, requestType, service, w, r)
+		body, httpStatus := callNext(target, requestType, service, w, &tracer, &span)
 		w.WriteHeader(httpStatus)
 		w.Write(body)
 		log.Printf("handling request %s\n", requestType)
-
+		span.Finish()
 	}
 
 }
@@ -198,8 +271,17 @@ func getNextTarget(currentNode string, requestType string) string {
 }
 
 func callAllTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
-
+	tracer := opentracing.GlobalTracer()
 	return func(w http.ResponseWriter, r *http.Request) {
+		var span opentracing.Span
+		if !root {
+			spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
+			span = tracer.StartSpan(name+"-server", ext.RPCServerOption(spanCtx))
+		} else {
+			span = tracer.StartSpan(requestType)
+			defer span.Finish()
+		}
+
 		w.Header().Set("Content-Type", "application/octet-stream")
 		httpStatus := http.StatusOK
 		body := []byte{0}
@@ -213,11 +295,12 @@ func callAllTargets(requestType string, service *Service, addrs []string) http.H
 			count--
 			log.Printf("calling --> %s", target)
 			// add go routine to call next
-			auxBody, auxHttpStatus := callNext(target, requestType, service, w, r)
+			auxBody, auxHttpStatus := callNext(target, requestType, service, w, &tracer, &span)
 			if auxHttpStatus != http.StatusOK {
 				log.Printf("HTTP ERROR %d when calling %s\n", auxHttpStatus, target)
 				w.WriteHeader(auxHttpStatus)
 				w.Write([]byte{0})
+				span.Finish()
 				return
 			}
 
@@ -227,13 +310,25 @@ func callAllTargets(requestType string, service *Service, addrs []string) http.H
 		w.WriteHeader(httpStatus)
 		w.Write(body)
 		log.Printf("handling request to all children")
+		span.Finish()
+
 	}
 
 }
 
 func callRandomTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
+	tracer := opentracing.GlobalTracer()
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		var span opentracing.Span
+		if !root {
+			spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
+			span = tracer.StartSpan(name+"-server", ext.RPCServerOption(spanCtx))
+		} else {
+			span = tracer.StartSpan(requestType)
+			defer span.Finish()
+		}
+
 		w.Header().Set("Content-Type", "application/octet-stream")
 		httpStatus := http.StatusOK
 		body := []byte{}
@@ -241,7 +336,7 @@ func callRandomTargets(requestType string, service *Service, addrs []string) htt
 		target := randomSelection(addrs)
 
 		// add go routine to call next
-		auxBody, auxHttpStatus := callNext(target, requestType, service, w, r)
+		auxBody, auxHttpStatus := callNext(target, requestType, service, w, &tracer, &span)
 		if auxHttpStatus != http.StatusOK {
 			log.Printf("HTTP ERROR %d when calling %s\n", auxHttpStatus, target)
 			w.WriteHeader(httpStatus)
@@ -254,6 +349,7 @@ func callRandomTargets(requestType string, service *Service, addrs []string) htt
 		w.Write(body)
 
 		log.Printf("handling request to random %s", target)
+		span.Finish()
 	}
 
 }
