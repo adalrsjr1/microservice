@@ -11,10 +11,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////NEW STRUCTURE////////////////////////////////////////////////////////////////////////////////////////////
 /**
 * Create a Service structure that will have the following attributes:
 * ID- the name of this particular Service
@@ -23,38 +22,33 @@ import (
 **/
 type Service struct {
 	ID                string
-	RequestsPerSecond int
+	RequestsPerSecond float64
 	ProcessTime       int
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//var globalName = ""
-//var globalPort = "8080"
-//var bufferReader *Queue
 var (
-	bufferReader *Queue
-	globalName string
-	globalPort string
-	port	   int
-	name       string
-	msgSize    uint
-	msgTime    uint
-	randomSeed int64
-	x          int
-	y          int
-	a          float64
-	b          float64
-	c          float64
-	d          float64
-	e          float64
-	f          float64
-	g          float64
-	h          float64
-	zipkin_black_hole string
+	globalName          string
+	globalPort          string
+	port                int
+	name                string
+	msgSize             uint
+	msgTime             uint
+	randomSeed          int64
+	x                   int
+	y                   int
+	a                   float64
+	b                   float64
+	c                   float64
+	d                   float64
+	e                   float64
+	f                   float64
+	g                   float64
+	h                   float64
+	zipkin_black_hole   string
 	sampling_black_hole string
+	throttling          <-chan time.Time
 )
+
 func main() {
 	writePid()
 
@@ -96,16 +90,16 @@ func main() {
 	microservice.ProcessTime = int(msgTime)
 
 	//calculate the number of requests per second that are handled on average based on the CPU load and processing time
-	load := getCpuUsage(x, y, a, b, c, d, e, f, g, h)
-	microservice.RequestsPerSecond = int(load / (float64(microservice.ProcessTime) / 1000.0))
-	log.Printf("%+v\n", microservice)
+	load := getCpuUsage(x, y, a, b, c, d, e, f, g, h) / 100
+	// 500 -> 10K
+	microservice.RequestsPerSecond = load * 4000
+	log.Printf("load: %f, proc time: %d, reqps: %f", load, microservice.ProcessTime, microservice.RequestsPerSecond)
 
-	bufferReader = NewQueue(microservice.RequestsPerSecond)
+	throttling = time.Tick(1000000000 / time.Duration(microservice.RequestsPerSecond) * time.Nanosecond)
 
 	SetMemUsage(x, y, a, b, c, d, e, f, g, h)
 
 	r := mux.NewRouter()
-
 
 	r.Methods("POST").Path("/all").HandlerFunc(callAllTargets("all", microservice, addrs))
 	r.Methods("GET").Path("/all").HandlerFunc(callAllTargets("all", microservice, addrs))
@@ -113,32 +107,17 @@ func main() {
 
 	for key, _ := range generatedRouteMap {
 		log.Printf("creating endpoint /%s\n", key)
-		r.Methods("POST").Path("/"+key).HandlerFunc(handleRequest(name, key, microservice))
+		r.Methods("POST").Path("/" + key).HandlerFunc(handleRequest(name, key, microservice))
 	}
-
-	//If this microservice has dependencies
-	//if len(addrs) != 0 {
-	//	log.Printf("setting non-terminal handlers in %s", name)
-	//
-	//	r.Methods("POST").Path("/").HandlerFunc(AllTargets(addrs[:], msgSize, msgTime, microservice, x, y, a, b, c, d, e, f, g, h))
-	//	r.Methods("POST").Path("/random").HandlerFunc(RandomTarget(addrs[:], msgSize, msgTime, microservice, x, y, a, b, c, d, e, f, g, h))
-	//
-	//} else {
-	//
-	//	log.Printf("setting terminal handlers in %s", name)
-	//
-	//	r.Methods("POST").Path("/").HandlerFunc(TerminationRequest(name, addrs[:], msgSize, msgTime, microservice, x, y, a, b, c, d, e, f, g, h))
-	//	r.Methods("POST").Path("/random").HandlerFunc(TerminationRequest(name, addrs[:], msgSize, msgTime, microservice, x, y, a, b, c, d, e, f, g, h))
-	//
-	//}
 
 	srv := &http.Server{
-		Handler:      r,
-		Addr:         ":"+globalPort,
+		Handler: r,
+		Addr:    ":" + globalPort,
 		// Good practice: enforce timeouts for servers you create!
-		//WriteTimeout: 15 * time.Second,
-		//ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
 	}
+
 	log.Fatal(srv.ListenAndServe())
 }
 
@@ -150,9 +129,9 @@ func writePid() {
 
 func doSomething(service *Service) []byte {
 	log.Println("mocking processing")
-	load := FinityCpuUsage(uint(service.ProcessTime), x, y, a, b, c, d, e, f, g, h)
 	fakeBody := make([]byte, integerNormalDistribution(msgSize, 10))
-	log.Printf("processing... cpu:%+v body_size:%d\n", load, len(fakeBody))
+	log.Printf("processing... body_size:%d, service:%+v\n", len(fakeBody), service)
+	log.Printf(" --- ## %+v ## --- \n", service)
 	return fakeBody
 }
 
@@ -161,12 +140,8 @@ func integerNormalDistribution(mean uint, dev uint) uint {
 }
 
 func callNext(target string, requestType string, service *Service, w http.ResponseWriter, r *http.Request) ([]byte, int) {
-	req := new(Request)
-
-	//Set 'Value' as the location that sent the request
-	req.Value = r.RemoteAddr
+	<-throttling
 	log.Println("-- buffering to queue -- ")
-	bufferReader.Push(req)
 
 	body := doSomething(service)
 	if target != "" {
@@ -190,8 +165,8 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 			w.Header().Set("ST-Size-Bytes", strconv.Itoa(len(body)))
 		} else {
 			log.Printf("HTTP Error %d calling %s\n", resp.StatusCode, "http://"+target+":"+globalPort+"/"+requestType)
-			return []byte{0}, http.StatusBadGateway
 			w.Header().Set("ST-Size-Bytes", "0")
+			return []byte{0}, http.StatusBadGateway
 		}
 	} else {
 		w.Header().Set("ST-Termination", "true")
@@ -199,7 +174,6 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 	}
 
 	log.Println(" -- unbuffering -- ")
-	bufferReader.Pop()
 	return body, http.StatusOK
 }
 
@@ -209,7 +183,6 @@ func handleRequest(name string, requestType string, service *Service) http.Handl
 		target := getNextTarget(name, requestType)
 		w.Header().Set("Content-Type", "application/octet-stream")
 
-		// add go routine to call next
 		body, httpStatus := callNext(target, requestType, service, w, r)
 		w.WriteHeader(httpStatus)
 		w.Write(body)
@@ -224,7 +197,7 @@ func getNextTarget(currentNode string, requestType string) string {
 	return nextNode
 }
 
-func callAllTargets(requestType string, service *Service, addrs []string) http.HandlerFunc  {
+func callAllTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -258,7 +231,7 @@ func callAllTargets(requestType string, service *Service, addrs []string) http.H
 
 }
 
-func callRandomTargets(requestType string, service *Service, addrs []string) http.HandlerFunc  {
+func callRandomTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")

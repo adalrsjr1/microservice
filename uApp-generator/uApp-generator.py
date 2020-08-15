@@ -25,7 +25,7 @@ class Graph:
             dag = nx.DiGraph()
             dag.add_node(0)
             return dag
-        
+
         m = 2
         if topology == 'star':
             m = n_nodes-1
@@ -293,6 +293,30 @@ class Kubernetes:
                             'image': 'adalrsjr1/microservice:latest',
                             'imagePullPolicy': 'Always',
                             'ports': [{'containerPort': 8080}],
+                            'resources': {
+                                'limits': {
+                                    'cpu': 1,
+                                    'memory': '1536Mi',
+                                }
+                            },
+                            'startupProbe': {
+                                'httpGet': {
+                                    'path': '/all',
+                                    'port': 8080
+                                },
+                                'initialDelaySeconds': 2,
+                                'failureThreshold': 2,
+                                'periodSeconds': 3
+                            },
+                            'readinessProbe': {
+                                'httpGet': {
+                                    'path': '/all',
+                                    'port': 8080
+                                },
+                                'initialDelaySeconds': 2,
+                                'failureThreshold': 2,
+                                'periodSeconds': 3
+                            },
                             'args': [
                                 '--name=$(NAME)',
                                 '--zipkin=$(ZIPKIN):9411',
@@ -320,14 +344,7 @@ class Kubernetes:
                                 'name': name + '-configmap'}}
                             ]
                         }],
-                        'readnessProbe': {
-                            'httpGet': {
-                                'path': '/all',
-                                'port': 8080
-                            },
-                            'initialDelaySeconds': 2,
-                            'periodSeconds': 10
-                        },
+
                         'nodeSelector': nodeSelector
                     }
                 }
@@ -361,55 +378,61 @@ class Kubernetes:
                             'name': 'X_VALUE',
                             'lower': -10,
                             'upper': 10,
-                            'step': 1
                         },
                         {
                             'name': 'Y_VALUE',
                             'lower': -10,
                             'upper': 10,
-                            'step': 1
                         },
                         {
                             'name': 'A_VALUE',
                             'lower': -4,
                             'upper': 4,
+                            'real': True
                         },
                         {
                             'name': 'B_VALUE',
                             'lower': -250,
                             'upper': 250,
+                            'real': True
                         },
                         {
                             'name': 'C_VALUE',
                             'lower': -10,
                             'upper': 10,
+                            'real': True
                         },
                         {
                             'name': 'D_VALUE',
                             'lower': 1e-15,
                             'upper': 1e15,
-                            'step': 10
+                            'step': 10,
+
                         },
                         {
                             'name': 'E_VALUE',
                             'lower': -2.5,
                             'upper': 2.5,
+                            'real': True
                         },
                         {
                             # can be also (-5,-10)
                             'name': 'F_VALUE',
                             'lower': 5,
                             'upper': 10,
+                            'real': True
                         },
                         {
                             'name': 'G_VALUE',
                             'lower': -3,
                             'upper': 3,
+                            'real': True
                         },
                         {
                             'name': 'H_VALUE',
                             'lower': -25,
                             'upper': 25,
+                            'real': True
                         },
                     ]
                 }
@@ -525,7 +548,7 @@ if __name__=="__main__":
             k.dump(out=kubernetes)
         
         c = ConfigMap(g)
-        c.create('uapp', appName, i, random.randint(100, 200), random.randint(100, 200), True)
+        c.create('uapp', appName, i, random.randint(128, 512), random.randint(100, 1000), True)
         fileName = appName+'-'+str(i)+'-configmap'
         configmap = open('generated/'+fileName+'.yaml', 'w')
         c.dump(out=configmap)

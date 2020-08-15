@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jmeter
+  namespace: uapp
+  labels:
+    app: jmeter
+spec:
+  containers:
+    - name: jmeter
+      image: adalrsjr1/mock-jmeter:latest
+      imagePullPolicy: Always
+      env:
+        - name: JHOST
+          value: "svc-0-mock"
+        - name: JPORT
+          value: "8080"
+        - name: JCLIENTS
+          value: "200"
+          # throughput per minute
+        - name: JTHROUGHPUT
+          value: "480000"
+  terminationGracePeriodSeconds: 5
+  restartPolicy: Always

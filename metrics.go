@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"runtime"
 	"time"
@@ -17,6 +18,7 @@ func SetMemUsage(x int, y int, a float64, b float64, c float64, d float64, e flo
 
 	mem := getMemoryUsage(x, y, a, b, c, d, e, f, g, h)
 	for ; i < mem; i++ {
+		// Giga
 		a := make([]int8, 0, 1048576*epsilon)
 		overall = append(overall, a)
 		//memUsage(mem)
@@ -113,16 +115,16 @@ func beale(x float64, y float64) float64 {
 		// Beale Function
 		val = math.Pow((1.5-x+x*y), 2) + math.Pow((2.25-x+(x*math.Pow(y, 2))), 2) + math.Pow((2.625-x+(x*math.Pow(y, 3))), 2)
 		// Maximum for this function is approx. 178000, so we can normalize it to a value between 0 and 0.2 by dividing by 890000
-		val = val/890000 + 0.2 // Make it a value between 0.2 and 0.4
-		fmt.Printf("beale val: %f\n", val)
+		val = val/890000 + 0.8 // Make it a value between 0.2 and 1.0
+		log.Printf("beale(%f, %f) val: %f\n", x, y, val)
 	} else {
-		fmt.Printf("beale fallback 0.4\n")
 		// For these cases, we received values outside of our valid search domains
 		// Therefore, let's just use a catch-all function that'll take any parameters
-		// For now, setting it to our upper bound of 0.4 (40% cpu load) - can write a function later
-		val = 0.4
+		val = 0.8 * (math.Sin((x*y) * math.Pi) + 1)/2
+		log.Printf("beale fallback (math.Sin((%f*%f) * math.Pi) + 1)/2 = %f\n", x, y, val)
 	}
-	return val
+	// to maximize the value
+	return 1.0 - val
 }
 
 func himmelblau(x float64, y float64) uint {
@@ -132,14 +134,18 @@ func himmelblau(x float64, y float64) uint {
 		pct = math.Pow(math.Pow(x, 2)+y-11, 2) + math.Pow(x+math.Pow(y, 2)-7, 2)
 		// Maximum for this function is approx. 890
 		pct = pct / 890 // make it a value between 0 and 1
-		fmt.Printf("himmelblau val: %f\n", pct)
+		log.Printf("himmelblau(%f, %f) val: %f\n", x, y, pct)
 	} else {
-		fmt.Printf("himmelblau fallback 1\n")
 		// For these cases, we received values outside of our valid search domains
 		// Therefore, let's just use a catch-all function that'll take any parameters
-		// For now, setting it to 100% - can write a function later
-		pct = 1
+		pct = 0.8 * (math.Cos((x*y) * math.Pi) + 1)/2
+		log.Printf("himmelblau fallback (math.Cos((%f*%f) * math.Pi) + 1)/2\n", x, y)
 	}
+
+	// to maximize the value
+	// to maximize the value
+	pct = 1.0 - pct
+
 	// this can be changed; let's use 1024 as our maximum and 0 as our minimum
 	val := uint(float64(1024) * pct) // note that we're changing it to a uint32 => nearest integer val
 	return val

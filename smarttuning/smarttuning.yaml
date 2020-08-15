@@ -40,7 +40,7 @@ data:
   # prometheus config
   PROMETHEUS_ADDR: 'prometheus-service.kube-monitoring.svc.cluster.local'
   PROMETHEUS_PORT: '9090'
-  SAMPLING_METRICS_TIMEOUT: '120'
+  SAMPLING_METRICS_TIMEOUT: '300'
   # classification config
   K: '1'
   DISTANCE_METHOD: "hellinger"
@@ -54,14 +54,14 @@ data:
   NUMBER_ITERATIONS: '0'
   METRIC_THRESHOLD: '0.0'
   RANDOM_SEED: '31'
-  GATEWAY_NAME: 'svc-0-mock'
+  GATEWAY_NAME: 'svc-0-mocksmarttuning'
   ## the objective is always to minimize
   ## 2 ** 20 transforms bytes to megabytes
   OBJECTIVE: '-(throughput / (memory / (2 ** 20)))'
   ##OBJECTIVE: '-(throughput / (memory / (2**20))) / (1.0 if in_out == 0 else in_out)'
   #OBJECTIVE: 'in_out'
   SAMPLE_SIZE: '0.3334'
-  WAITING_TIME: '120'
+  WAITING_TIME: '300'
   POD_REGEX: 'svc-.+smarttuning-.+'
   POD_PROD_REGEX: 'svc-.+mock-.+'
   QUANTILE: '1.0'

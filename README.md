@@ -94,7 +94,7 @@ All parameters are continuous unless otherwise specified.
 5 <= f <= 10, -10 <= f <= -5
 -3 <= g <= 3
 -25 <= h < 25
--10 <= x, y <= 10 | Step: 1, not continuous
+-3 <= x, y <= 3 | Step: 1, not continuous
 ```
 All parameters are independent of each other.
 
