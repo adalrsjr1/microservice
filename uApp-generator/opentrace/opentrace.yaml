@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opentrace-jaeger-dep
+  labels:
+    app: opentrace-jaeger
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: opentrace-jaeger-pod
+      labels:
+        app: opentrace-jaeger
+    spec:
+      containers:
+        - name: opentrace-jaeger
+          image: jaegertracing/all-in-one
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: COLLECTOR_ZIPKIN_HTTP_PORT
+              value: "9411"
+          ports:
+            - containerPort: 6831
+              protocol:  UDP
+            - containerPort: 16686
+              protocol: TCP
+      restartPolicy: Always
+  selector:
+    matchLabels:
+      app: opentrace-jaeger
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opentrace-jaeger-svc
+spec:
+  selector:
+    app: opentrace-jaeger
+  ports:
+    - port: 6831
+      protocol: UDP
+      name: internal
+    - port: 16686
+      nodePort: 30086
+      protocol: TCP
+      name: external
+  type: NodePort

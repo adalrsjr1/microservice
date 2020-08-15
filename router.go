@@ -241,17 +241,10 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 }
 
 func handleRequest(name string, requestType string, service *Service) http.HandlerFunc {
-	tracer := opentracing.GlobalTracer()
-	return func(w http.ResponseWriter, r *http.Request) {
-		var span opentracing.Span
-		if !root {
-			spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
-			span = tracer.StartSpan(name+"-server", ext.RPCServerOption(spanCtx))
-		} else {
-			span = tracer.StartSpan(requestType)
-			defer span.Finish()
-		}
 
+	return func(w http.ResponseWriter, r *http.Request) {
+		span, tracer := startSpan(name, requestType, &r.Header)
+		defer span.Finish()
 
 		target := getNextTarget(name, requestType)
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -265,22 +258,27 @@ func handleRequest(name string, requestType string, service *Service) http.Handl
 
 }
 
+func startSpan(name string, requestType string, header *http.Header) (opentracing.Span, opentracing.Tracer) {
+	var span opentracing.Span
+	tracer := opentracing.GlobalTracer()
+	if !root {
+		spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(*header))
+		span = tracer.StartSpan(name, ext.RPCServerOption(spanCtx))
+	} else {
+		span = tracer.StartSpan(requestType)
+	}
+	return span, tracer
+}
+
 func getNextTarget(currentNode string, requestType string) string {
 	nextNode := generatedRouteMap[requestType][currentNode]
 	return nextNode
 }
 
 func callAllTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
-	tracer := opentracing.GlobalTracer()
 	return func(w http.ResponseWriter, r *http.Request) {
-		var span opentracing.Span
-		if !root {
-			spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
-			span = tracer.StartSpan(name+"-server", ext.RPCServerOption(spanCtx))
-		} else {
-			span = tracer.StartSpan(requestType)
-			defer span.Finish()
-		}
+		span, tracer := startSpan(name, requestType, &r.Header)
+		defer span.Finish()
 
 		w.Header().Set("Content-Type", "application/octet-stream")
 		httpStatus := http.StatusOK
@@ -317,17 +315,9 @@ func callAllTargets(requestType string, service *Service, addrs []string) http.H
 }
 
 func callRandomTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
-	tracer := opentracing.GlobalTracer()
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		var span opentracing.Span
-		if !root {
-			spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
-			span = tracer.StartSpan(name+"-server", ext.RPCServerOption(spanCtx))
-		} else {
-			span = tracer.StartSpan(requestType)
-			defer span.Finish()
-		}
+		span, tracer := startSpan(name, requestType, &r.Header)
+		defer span.Finish()
 
 		w.Header().Set("Content-Type", "application/octet-stream")
 		httpStatus := http.StatusOK
