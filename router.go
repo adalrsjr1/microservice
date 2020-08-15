@@ -178,6 +178,7 @@ func writePid() {
 
 func doSomething(service *Service) []byte {
 	log.Println("mocking processing")
+	FinityCpuUsage(uint(service.ProcessTime),x,y,a,b,c,d,e,f,g,h)
 	fakeBody := make([]byte, integerNormalDistribution(msgSize, 10))
 	log.Printf("processing... body_size:%d, service:%+v\n", len(fakeBody), service)
 	log.Printf(" --- ## %+v ## --- \n", service)
@@ -189,7 +190,6 @@ func integerNormalDistribution(mean uint, dev uint) uint {
 }
 
 func callNext(target string, requestType string, service *Service, w http.ResponseWriter, tracer *opentracing.Tracer, clientSpan *opentracing.Span) ([]byte, int) {
-	<-throttling
 	log.Println("-- buffering to queue -- ")
 
 	body := doSomething(service)
@@ -205,7 +205,7 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 		// Set some tags on the clientSpan to annotate that it's the client span. The additional HTTP tags are useful for debugging purposes.
 		ext.SpanKindRPCClient.Set(*clientSpan)
 		ext.HTTPUrl.Set(*clientSpan, url)
-		ext.HTTPMethod.Set(*clientSpan, "GET")
+		ext.HTTPMethod.Set(*clientSpan, "POST")
 
 		// Inject the client span context into the headers
 		(*tracer).Inject((*clientSpan).Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
@@ -241,10 +241,9 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 }
 
 func handleRequest(name string, requestType string, service *Service) http.HandlerFunc {
-
+	<-throttling
 	return func(w http.ResponseWriter, r *http.Request) {
 		span, tracer := startSpan(name, requestType, &r.Header)
-		defer span.Finish()
 
 		target := getNextTarget(name, requestType)
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -253,7 +252,7 @@ func handleRequest(name string, requestType string, service *Service) http.Handl
 		w.WriteHeader(httpStatus)
 		w.Write(body)
 		log.Printf("handling request %s\n", requestType)
-		span.Finish()
+		defer span.Finish()
 	}
 
 }
@@ -263,10 +262,11 @@ func startSpan(name string, requestType string, header *http.Header) (opentracin
 	tracer := opentracing.GlobalTracer()
 	if !root {
 		spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(*header))
-		span = tracer.StartSpan(name, ext.RPCServerOption(spanCtx))
+		span = tracer.StartSpan(requestType, ext.RPCServerOption(spanCtx))
 	} else {
 		span = tracer.StartSpan(requestType)
 	}
+
 	return span, tracer
 }
 
@@ -276,9 +276,9 @@ func getNextTarget(currentNode string, requestType string) string {
 }
 
 func callAllTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
+	<-throttling
 	return func(w http.ResponseWriter, r *http.Request) {
 		span, tracer := startSpan(name, requestType, &r.Header)
-		defer span.Finish()
 
 		w.Header().Set("Content-Type", "application/octet-stream")
 		httpStatus := http.StatusOK
@@ -298,7 +298,7 @@ func callAllTargets(requestType string, service *Service, addrs []string) http.H
 				log.Printf("HTTP ERROR %d when calling %s\n", auxHttpStatus, target)
 				w.WriteHeader(auxHttpStatus)
 				w.Write([]byte{0})
-				span.Finish()
+				defer span.Finish()
 				return
 			}
 
@@ -308,16 +308,15 @@ func callAllTargets(requestType string, service *Service, addrs []string) http.H
 		w.WriteHeader(httpStatus)
 		w.Write(body)
 		log.Printf("handling request to all children")
-		span.Finish()
-
+		defer span.Finish()
 	}
 
 }
 
 func callRandomTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
+	<-throttling
 	return func(w http.ResponseWriter, r *http.Request) {
 		span, tracer := startSpan(name, requestType, &r.Header)
-		defer span.Finish()
 
 		w.Header().Set("Content-Type", "application/octet-stream")
 		httpStatus := http.StatusOK
@@ -331,6 +330,7 @@ func callRandomTargets(requestType string, service *Service, addrs []string) htt
 			log.Printf("HTTP ERROR %d when calling %s\n", auxHttpStatus, target)
 			w.WriteHeader(httpStatus)
 			w.Write(body)
+			defer span.Finish()
 			return
 		}
 
@@ -339,7 +339,7 @@ func callRandomTargets(requestType string, service *Service, addrs []string) htt
 		w.Write(body)
 
 		log.Printf("handling request to random %s", target)
-		span.Finish()
+		defer span.Finish()
 	}
 
 }
