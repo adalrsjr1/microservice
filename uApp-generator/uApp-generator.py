@@ -405,7 +405,7 @@ class Kubernetes:
                         {
                             'name': 'D_VALUE',
                             'lower': 1e-15,
-                            'upper': 1e15,
+                            'upper': 1e-1,
                             'step': 10,
 
                         },
