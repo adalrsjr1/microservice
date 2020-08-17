@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jmeter
+  name: jmeter2
   namespace: uapp
   labels:
     app: jmeter
