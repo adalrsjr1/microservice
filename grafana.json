@@ -16,7 +16,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1597086596274,
+  "iteration": 1598830924433,
   "links": [],
   "panels": [
     {
@@ -269,13 +269,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"$prod_podname-.*\",name!~\".*POD.*\"}[$time_interval_m]))",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"$prod_podname-.*\",name!~\".*POD.*\",id=~\"/kubepods.*\"}[$time_interval_m]))",
           "interval": "",
           "legendFormat": "PROD $prod_podname",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"$train_podname-.*\",name!~\".*POD.*\"}[$time_interval_m]))",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"$train_podname-.*\",name!~\".*POD.*\",id=~\"/kubepods.*\"}[$time_interval_m]))",
           "interval": "",
           "legendFormat": "TRAIN $train_podname",
           "refId": "B"
@@ -370,15 +370,15 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(max_over_time(container_memory_working_set_bytes{namespace=\"$namespace\",pod=~\"$prod_podname-.*\",name!~\".*POD.*\", container!=\"\"}[$time_interval_m]))",
+          "expr": "sum(max_over_time(container_memory_working_set_bytes{namespace=\"$namespace\",pod=~\"$prod_podname-.*\",name!~\".*POD.*\",id=~\"/kubepods.*\", container!=\"\"}[$time_interval_m]))",
           "interval": "",
-          "legendFormat": "PROD $prod_podname",
+          "legendFormat": "",
           "refId": "A"
         },
         {
-          "expr": "sum(max_over_time(container_memory_working_set_bytes{namespace=\"$namespace\",pod=~\"$train_podname-.*\",name!~\".*POD.*\", container!=\"\"}[$time_interval_m]))",
+          "expr": "sum(max_over_time(container_memory_working_set_bytes{namespace=\"$namespace\",pod=~\"$train_podname-.*\",name!~\".*POD.*\",id=~\"/kubepods.*\", container!=\"\"}[$time_interval_m]))",
           "interval": "",
-          "legendFormat": "TRAIN $train_podname",
+          "legendFormat": "",
           "refId": "B"
         }
       ],
@@ -635,20 +635,19 @@
       {
         "allValue": null,
         "current": {
-          "isNone": true,
           "selected": false,
-          "text": "None",
-          "value": ""
+          "text": "uapp",
+          "value": "uapp"
         },
         "datasource": "prometheus",
-        "definition": "smarttuning_http_requests_total",
+        "definition": "container_cpu_usage_seconds_total",
         "hide": 0,
         "includeAll": false,
         "label": null,
         "multi": false,
         "name": "namespace",
         "options": [],
-        "query": "smarttuning_http_requests_total",
+        "query": "container_cpu_usage_seconds_total",
         "refresh": 2,
         "regex": "/.*namespace=\"([\\w]*).*/",
         "skipUrlSync": false,
@@ -665,20 +664,20 @@
         "auto_min": "10s",
         "current": {
           "selected": false,
-          "text": "5m",
-          "value": "5m"
+          "text": "1m",
+          "value": "1m"
         },
         "hide": 0,
         "label": null,
         "name": "time_interval_m",
         "options": [
           {
-            "selected": false,
+            "selected": true,
             "text": "1m",
             "value": "1m"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "5m",
             "value": "5m"
           },
@@ -743,8 +742,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "svc-1-mock",
-          "value": "svc-1-mock"
+          "text": "svc-0-mock",
+          "value": "svc-0-mock"
         },
         "datasource": "prometheus",
         "definition": "container_cpu_usage_seconds_total",

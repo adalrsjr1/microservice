@@ -120,11 +120,12 @@ func beale(x float64, y float64) float64 {
 	} else {
 		// For these cases, we received values outside of our valid search domains
 		// Therefore, let's just use a catch-all function that'll take any parameters
-		val = 0.8 * (math.Sin((x*y) * math.Pi) + 1)/2
+
+		val = 0.5 * (math.Sin(math.Min(x,y) * math.Pi) + 1)/2
 		log.Printf("beale fallback (math.Sin((%f*%f) * math.Pi) + 1)/2 = %f\n", x, y, val)
 	}
 	// to maximize the value
-	return 1.0 - val
+	return 1-val
 }
 
 func himmelblau(x float64, y float64) uint {
@@ -138,14 +139,10 @@ func himmelblau(x float64, y float64) uint {
 	} else {
 		// For these cases, we received values outside of our valid search domains
 		// Therefore, let's just use a catch-all function that'll take any parameters
-		pct = 0.8 * (math.Cos((x*y) * math.Pi) + 1)/2
-		log.Printf("himmelblau fallback (math.Cos((%f*%f) * math.Pi) + 1)/2\n", x, y)
+		pct = 0.5 * (math.Cos(math.Min(x,y) * math.Pi) + 1)/2
+		log.Printf("himmelblau fallback (math.Cos((%f*%f) * math.Pi) + 1)/2 = %f\n", x, y, pct)
 	}
-
-	// to maximize the value
-	// to maximize the value
-	pct = 1.0 - pct
-
+	pct = 1- pct
 	// this can be changed; let's use 1024 as our maximum and 0 as our minimum
 	val := uint(float64(1024) * pct) // note that we're changing it to a uint32 => nearest integer val
 	return val
