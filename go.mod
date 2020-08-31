@@ -20,6 +20,7 @@ require (
 	go.uber.org/atomic v1.6.0 // indirect
 	golang.org/x/net v0.0.0-20190923162816-aa69164e4478 // indirect
 	golang.org/x/sys v0.0.0-20191010194322-b09406accb47 // indirect
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.1 // indirect
 )

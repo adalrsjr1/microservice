@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"github.com/gorilla/mux"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/uber/jaeger-lib/metrics"
+	"golang.org/x/time/rate"
 	"io/ioutil"
 	"log"
 	"math"
@@ -13,8 +16,8 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
-	opentracing "github.com/opentracing/opentracing-go"
 
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -55,6 +58,8 @@ var (
 	sampling_black_hole string
 	throttling          <-chan time.Time
 	root				bool
+	limiter				*rate.Limiter
+	ctx					context.Context
 )
 
 func main() {
@@ -141,17 +146,21 @@ func main() {
 	//calculate the number of requests per second that are handled on average based on the CPU load and processing time
 	load := getCpuUsage(x, y, a, b, c, d, e, f, g, h) / 100
 	// 500 -> 10K
-	microservice.RequestsPerSecond = load * 4000
+	microservice.RequestsPerSecond = load * 2000
+	//rt := rate.Every(1000000000 / (time.Duration(microservice.RequestsPerSecond)*time.Nanosecond))
+	//limiter = rate.NewLimiter(rt,0)
+	//ctx = context.Background()
 	log.Printf("load: %f, proc time: %d, reqps: %f", load, microservice.ProcessTime, microservice.RequestsPerSecond)
 
-	throttling = time.Tick(1000000000 / time.Duration(microservice.RequestsPerSecond) * time.Nanosecond)
+	throttling = time.Tick(time.Second / time.Duration(microservice.RequestsPerSecond))
+	//throttling = time.Tick(time.Duration(microservice.RequestsPerSecond))
 
 	SetMemUsage(x, y, a, b, c, d, e, f, g, h)
 
 	r := mux.NewRouter()
 
 	r.Methods("POST").Path("/all").HandlerFunc(callAllTargets("all", microservice, addrs))
-	r.Methods("GET").Path("/all").HandlerFunc(callAllTargets("all", microservice, addrs))
+	r.Methods("GET").Path("/health").HandlerFunc(healthz())
 	r.Methods("POST").Path("/random").HandlerFunc(callRandomTargets("random", microservice, addrs))
 
 	for key, _ := range generatedRouteMap {
@@ -160,7 +169,7 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Handler: r,
+		Handler: limit(r),
 		Addr:    ":" + globalPort,
 		// Good practice: enforce timeouts for servers you create!
 		WriteTimeout: 15 * time.Second,
@@ -168,6 +177,20 @@ func main() {
 	}
 
 	log.Fatal(srv.ListenAndServe())
+}
+
+func limit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<- throttling
+		//limiter.Wait(ctx)
+		//if limiter.Allow() == false {
+			//http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+			//http.Error(w, http.StatusText(504), http.StatusGatewayTimeout)
+			//return
+		//}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func writePid() {
@@ -178,7 +201,7 @@ func writePid() {
 
 func doSomething(service *Service) []byte {
 	log.Println("mocking processing")
-	FinityCpuUsage(uint(service.ProcessTime),x,y,a,b,c,d,e,f,g,h)
+	//go FinityCpuUsage(uint(service.ProcessTime),x,y,a,b,c,d,e,f,g,h)
 	fakeBody := make([]byte, integerNormalDistribution(msgSize, 10))
 	log.Printf("processing... body_size:%d, service:%+v\n", len(fakeBody), service)
 	log.Printf(" --- ## %+v ## --- \n", service)
@@ -193,14 +216,16 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 	log.Println("-- buffering to queue -- ")
 
 	body := doSomething(service)
+	(*clientSpan).SetBaggageItem("request-"+target+"-length", strconv.Itoa(len(body)))
 	if target != "" {
 		w.Header().Set("Next-Hop", target)
 		w.Header().Set("ST-Termination", "false")
 
 		url := "http://"+target+":"+globalPort+"/"+requestType
-		log.Printf("Callling next %s\n", "http://"+target+":"+globalPort+"/"+requestType)
+		log.Printf("Calling next %s\n", "http://"+target+":"+globalPort+"/"+requestType)
 		//resp, err := http.Post(url, "application/octet-stream", bytes.NewBuffer(body))
 		req, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
+
 
 		// Set some tags on the clientSpan to annotate that it's the client span. The additional HTTP tags are useful for debugging purposes.
 		ext.SpanKindRPCClient.Set(*clientSpan)
@@ -213,8 +238,9 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 
 		(*tracer).Inject((*clientSpan).Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
 		if err != nil {
-			log.Printf("Error calling %s\n", url)
+			log.Printf("Error calling %s %+v\n", url, err)
 			w.Header().Set("ST-Size-Bytes", "0")
+			(*clientSpan).SetBaggageItem("response-"+target+"-length", "0")
 			return []byte{0}, http.StatusBadGateway
 		}
 		defer resp.Body.Close()
@@ -224,11 +250,13 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 			if err != nil {
 				log.Fatal(err)
 			}
+			log.Printf("response body %d == %d + %d\n", len(body) + len(responseBody), len(body), len(responseBody))
 			body = append(body, responseBody...)
 			w.Header().Set("ST-Size-Bytes", strconv.Itoa(len(body)))
 		} else {
 			log.Printf("HTTP Error %d calling %s\n", resp.StatusCode, "http://"+target+":"+globalPort+"/"+requestType)
 			w.Header().Set("ST-Size-Bytes", "0")
+			(*clientSpan).SetBaggageItem("response-"+target+"-length", "0")
 			return []byte{0}, http.StatusBadGateway
 		}
 	} else {
@@ -236,12 +264,12 @@ func callNext(target string, requestType string, service *Service, w http.Respon
 		w.Header().Set("ST-Size-Bytes", strconv.Itoa(len(body)))
 	}
 
+	(*clientSpan).SetBaggageItem("response-"+target+"-length", strconv.Itoa(len(body)))
 	log.Println(" -- unbuffering -- ")
 	return body, http.StatusOK
 }
 
 func handleRequest(name string, requestType string, service *Service) http.HandlerFunc {
-	<-throttling
 	return func(w http.ResponseWriter, r *http.Request) {
 		span, tracer := startSpan(name, requestType, &r.Header)
 
@@ -275,34 +303,70 @@ func getNextTarget(currentNode string, requestType string) string {
 	return nextNode
 }
 
+func healthz() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+type Output struct {
+	target string
+	status int
+	body []byte
+}
+
 func callAllTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
-	<-throttling
 	return func(w http.ResponseWriter, r *http.Request) {
 		span, tracer := startSpan(name, requestType, &r.Header)
 
 		w.Header().Set("Content-Type", "application/octet-stream")
 		httpStatus := http.StatusOK
-		body := []byte{0}
+		body := []byte{}
 
 		if len(addrs) == 0 {
 			addrs = []string{""}
 		}
 
 		count := len(addrs)
+		channel := make(chan Output, count)
+		var wg sync.WaitGroup
 		for _, target := range addrs {
-			count--
-			log.Printf("calling --> %s", target)
-			// add go routine to call next
-			auxBody, auxHttpStatus := callNext(target, requestType, service, w, &tracer, &span)
-			if auxHttpStatus != http.StatusOK {
-				log.Printf("HTTP ERROR %d when calling %s\n", auxHttpStatus, target)
-				w.WriteHeader(auxHttpStatus)
+			wg.Add(1)
+			go func(ch chan Output, tg string) {
+				defer wg.Done()
+
+				log.Printf("calling --> %s", tg)
+				// add go routine to call next
+				auxBody, auxHttpStatus := callNext(tg, requestType, service, w, &tracer, &span)
+				output := Output{
+					target: tg,
+					status: auxHttpStatus,
+					body: auxBody,
+				}
+
+				ch <- output
+
+			}(channel, target)
+		}
+
+		go func() {
+			wg.Wait()
+			close(channel)
+		}()
+
+		for output := range channel {
+			log.Printf("processing response from %s\n", output.target)
+			if output.status != http.StatusOK {
+				log.Printf("HTTP ERROR %d when calling %s\n", output.status, output.target)
+				w.WriteHeader(output.status)
 				w.Write([]byte{0})
 				defer span.Finish()
 				return
 			}
 
-			body = append(body, auxBody...)
+			body = append(body, output.body...)
+			log.Printf("processed %dB from %s\n", len(output.body), output.target)
+
 		}
 
 		w.WriteHeader(httpStatus)
@@ -314,7 +378,6 @@ func callAllTargets(requestType string, service *Service, addrs []string) http.H
 }
 
 func callRandomTargets(requestType string, service *Service, addrs []string) http.HandlerFunc {
-	<-throttling
 	return func(w http.ResponseWriter, r *http.Request) {
 		span, tracer := startSpan(name, requestType, &r.Header)
 

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jmeter2
+  name: jmeter1
   namespace: uapp
   labels:
     app: jmeter
@@ -15,7 +15,7 @@ spec:
           value: "svc-0-mock"
         - name: JPORT
           value: "8080"
-        - name: JCLIENTS
+        - name: JTHREADS
           value: "200"
           # throughput per minute
         - name: JTHROUGHPUT

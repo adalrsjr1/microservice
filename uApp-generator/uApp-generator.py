@@ -28,24 +28,20 @@ class Graph:
 
         m = 2
         if topology == 'star':
+            dag = nx.DiGraph()
+            dag.add_node(0)
+            for node in range(n_nodes-1):
+                dag.add_edge(0, node+1)
+            return dag
             m = n_nodes-1
-        g = nx.barabasi_albert_graph(n_nodes, m, seed=seed)
 
+        g = nx.barabasi_albert_graph(n_nodes, m, seed=seed)
         edges = g.edges()
-        if topology == 'star' or topology == 'planar':
+        if topology == 'planar':
             edges = nx.dfs_tree(g, 0).edges()
 
         dag = nx.DiGraph()
         dag.add_edges_from(edges)
-
-        # corner case to avoid dangling nodes in star topoligy
-        if topology == 'star':
-            first_edge = None
-            for edge in edges:
-                first_edge = edge
-                break
-            dag.remove_edge(*first_edge)
-            dag.add_edge(first_edge[1], first_edge[0])
 
         return dag
 
@@ -196,12 +192,12 @@ class Kubernetes:
                 continue
 
             name = svc_name + '-' + str(svc_num) + '-mock'
-            childs = [f'svc-{child}-mock' for child, v in value.items()]
-            #childs = [f'svc-{child}-mock.{namespace}.svc.cluster.local' for child, v in value.items()]
+            # childs = [f'svc-{child}-mock' for child, v in value.items()]
+            childs = [f'svc-{child}-mock.{namespace}.svc.cluster.local' for child, v in value.items()]
             args['name'] = name
             args['msgsize'] = msgsize
             args['msgtime'] = msgtime
-            args['sampling'] = sampling
+            args['sampling'] = 1 if sampling else 0
             args['childs'] = childs
             root=not bool(key)
 
@@ -295,31 +291,27 @@ class Kubernetes:
                             'ports': [{'containerPort': 8080}],
                             'resources': {
                                 'limits': {
-                                    'cpu': 1,
-                                    'memory': '1536Mi',
+                                    'cpu': "1",
+                                    'memory': "1536Mi",
                                 }
                             },
-                            'startupProbe': {
-                                'httpGet': {
-                                    'path': '/all',
-                                    'port': 8080
-                                },
-                                'initialDelaySeconds': 2,
-                                'failureThreshold': 2,
-                                'periodSeconds': 3
-                            },
-                            'readinessProbe': {
-                                'httpGet': {
-                                    'path': '/all',
-                                    'port': 8080
-                                },
-                                'initialDelaySeconds': 2,
-                                'failureThreshold': 2,
-                                'periodSeconds': 3
-                            },
+                            # 'startupProbe': {
+                            #     'httpGet': {
+                            #         'path': '/all',
+                            #         'port': 8080
+                            #     },
+                            #     'initialDelaySeconds': 2,
+                            # },
+                            # 'readinessProbe': {
+                            #     'httpGet': {
+                            #         'path': '/health',
+                            #         'port': 8080
+                            #     },
+                            #     'initialDelaySeconds': 10,
+                            # },
                             'args': [
                                 '--name=$(NAME)',
-                                '--zipkin=$(ZIPKIN):9411',
+                                '--zipkin=$(ZIPKIN):6831',
                                 '--sampling=%s' % args['sampling'],
                                 '--msg-size=$(MSG_SIZE)',
                                 '--msg-time=$(MSG_TIME)',
@@ -336,7 +328,7 @@ class Kubernetes:
                             ] + args['childs'],
                             'env': [
                                 {'name': 'ZIPKIN',
-                                'value': 'zipkin.default.svc.cluster.local'}
+                                'value': 'opentrace-jaeger-svc.default.svc.cluster.local'}
                             ]
                             ,
                             'envFrom': [
@@ -405,7 +397,7 @@ class Kubernetes:
                         {
                             'name': 'D_VALUE',
                             'lower': 1e-15,
-                            'upper': 1e-1,
+                            'upper': 1e15,
                             'step': 10,
 
                         },
@@ -479,7 +471,7 @@ class ConfigMap:
                 'A_VALUE': str(random.uniform(-4, 4)),
                 'B_VALUE': str(random.uniform(-250, 250)),
                 'C_VALUE': str(random.uniform(-10, 10)),
-                'D_VALUE': str(random.uniform(1e-5, 1e5)),
+                'D_VALUE': str(random.uniform(1e-15, 1e15)),
                 'E_VALUE': str(random.uniform(-2.5, 2.5)),
                 'F_VALUE': str(random.uniform(5, 10) if random.choice([True, False]) else random.uniform(-10, -5)),
                 'G_VALUE': str(random.uniform(-3, 3)),

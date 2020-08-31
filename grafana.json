@@ -16,7 +16,11 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 1,
+<<<<<<< HEAD
   "iteration": 1606084655964,
+=======
+  "iteration": 1598830924433,
+>>>>>>> fix throttling
   "links": [],
   "panels": [
     {
@@ -799,13 +803,21 @@
       "steppedLine": false,
       "targets": [
         {
+<<<<<<< HEAD
           "expr": "sum(rate(container_cpu_usage_seconds_total{id=~\".kubepods.*\",pod=~\"$prod_podname-.*\",name!~\".*POD.*\"}[$time_interval_m]))",
+=======
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"$prod_podname-.*\",name!~\".*POD.*\",id=~\"/kubepods.*\"}[$time_interval_m]))",
+>>>>>>> fix throttling
           "interval": "",
           "legendFormat": "PROD $prod_podname",
           "refId": "A"
         },
         {
+<<<<<<< HEAD
           "expr": "sum(rate(container_cpu_usage_seconds_total{id=~\".kubepods.*\",pod=~\"$train_podname-.*\",name!~\".*POD.*\"}[$time_interval_m]))",
+=======
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"$train_podname-.*\",name!~\".*POD.*\",id=~\"/kubepods.*\"}[$time_interval_m]))",
+>>>>>>> fix throttling
           "interval": "",
           "legendFormat": "TRAIN $train_podname",
           "refId": "B"
@@ -913,6 +925,7 @@
       "steppedLine": false,
       "targets": [
         {
+<<<<<<< HEAD
           "expr": "sum(max_over_time(container_memory_working_set_bytes{id=~\".kubepods.*\",pod=~\"$prod_podname-.*\",name!~\".*POD.*\", container!=\"\"}[$time_interval_m])) ",
           "interval": "",
           "legendFormat": "PROD",
@@ -922,6 +935,17 @@
           "expr": "sum(max_over_time(container_memory_working_set_bytes{id=~\".kubepods.*\",pod=~\"$train_podname-.*\",name!~\".*POD.*\", container!=\"\"}[$time_interval_m]))",
           "interval": "",
           "legendFormat": "TRAIN",
+=======
+          "expr": "sum(max_over_time(container_memory_working_set_bytes{namespace=\"$namespace\",pod=~\"$prod_podname-.*\",name!~\".*POD.*\",id=~\"/kubepods.*\", container!=\"\"}[$time_interval_m]))",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(max_over_time(container_memory_working_set_bytes{namespace=\"$namespace\",pod=~\"$train_podname-.*\",name!~\".*POD.*\",id=~\"/kubepods.*\", container!=\"\"}[$time_interval_m]))",
+          "interval": "",
+          "legendFormat": "",
+>>>>>>> fix throttling
           "refId": "B"
         },
         {
@@ -1200,8 +1224,13 @@
         "allValue": null,
         "current": {
           "selected": false,
+<<<<<<< HEAD
           "text": "default",
           "value": "default"
+=======
+          "text": "uapp",
+          "value": "uapp"
+>>>>>>> fix throttling
         },
         "datasource": "prometheus",
         "definition": "container_cpu_usage_seconds_total",
@@ -1228,25 +1257,35 @@
         "auto_min": "10s",
         "current": {
           "selected": false,
+<<<<<<< HEAD
           "text": "10m",
           "value": "10m"
+=======
+          "text": "1m",
+          "value": "1m"
+>>>>>>> fix throttling
         },
         "hide": 0,
         "label": null,
         "name": "time_interval_m",
         "options": [
           {
+<<<<<<< HEAD
             "selected": false,
             "text": "30s",
             "value": "30s"
           },
           {
             "selected": false,
+=======
+            "selected": true,
+>>>>>>> fix throttling
             "text": "1m",
             "value": "1m"
           },
           {
             "selected": false,
+<<<<<<< HEAD
             "text": "100s",
             "value": "100s"
           },
@@ -1257,6 +1296,8 @@
           },
           {
             "selected": false,
+=======
+>>>>>>> fix throttling
             "text": "5m",
             "value": "5m"
           },
@@ -1336,8 +1377,13 @@
         "allValue": null,
         "current": {
           "selected": false,
+<<<<<<< HEAD
           "text": "daytrader-service",
           "value": "daytrader-service"
+=======
+          "text": "svc-0-mock",
+          "value": "svc-0-mock"
+>>>>>>> fix throttling
         },
         "datasource": "prometheus",
         "definition": "container_cpu_usage_seconds_total",
