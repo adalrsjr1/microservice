@@ -1,5 +1,7 @@
 see also the modular version of this project in
-[perf](https://github.com/adalrsjr1/perf/).  # Dummy microservice
+[perf](https://github.com/adalrsjr1/perf/).
+
+# Dummy microservice
 
 A tiny golang application simulating a microservice. It
 
