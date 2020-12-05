@@ -1,3 +1,4 @@
+see also my [perf](https://github.com/adalrsjr1/perf/) project
 # Dummy microservice
 
 A tiny golang application simulating a microservice. It
